@@ -1,7 +1,8 @@
 import { getDb } from "./db";
 import { requireAuth } from "./auth";
 import { apiNameToDbName, dbNameToApiName } from "./sync/team-mapping";
-import { getBracketDAG } from "./sync/bracket-paths";
+import { getBracketDAG, getR32Slots } from "./sync/bracket-paths";
+import { computeGroupStandings, getQualifiedTeams, resolveTeamSource } from "./sync/standings-helper";
 
 interface Env {
   DB: D1Database;
@@ -39,6 +40,7 @@ interface SyncReport {
   knockout_scores_updated: number;
   knockout_scores_skipped: number;
   penalty_winners_set: number;
+  r32_teams_assigned: number;
   r16_advanced: number;
   qf_advanced: number;
   sf_advanced: number;
@@ -73,6 +75,7 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
     knockout_scores_updated: 0,
     knockout_scores_skipped: 0,
     penalty_winners_set: 0,
+    r32_teams_assigned: 0,
     r16_advanced: 0,
     qf_advanced: 0,
     sf_advanced: 0,
@@ -235,22 +238,76 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
     return advances;
   }
 
-  // ── Main loop: score → advance → reload → repeat until stuck ──
+  // ── Phase A: iterative score + advance loop ──
   const MAX_ITERATIONS = 6;
   let state = await loadMatchMap(db);
 
-  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-    let scoreChanges = 0;
-
-    for (const fixture of fixtures) {
-      scoreChanges += await processFixture(fixture, state);
+  async function runLoop(iterationCap: number) {
+    for (let iter = 0; iter < iterationCap; iter++) {
+      let scoreChanges = 0;
+      for (const fixture of fixtures) {
+        scoreChanges += await processFixture(fixture, state);
+      }
+      const advances = await tryAdvance();
+      if (scoreChanges === 0 && advances === 0) break;
+      state = await loadMatchMap(db);
     }
+  }
 
-    let advances = await tryAdvance();
+  await runLoop(MAX_ITERATIONS);
 
-    if (scoreChanges === 0 && advances === 0) break;
+  // ── Phase B: assign R32 teams from group standings (only when all groups complete) ──
+  const groupRows = await db.prepare(`
+    SELECT
+      t.group_letter, t.id as team_id, t.name as team_name, t.flag_emoji as flag_emoji,
+      COALESCE(SUM(CASE
+        WHEN m.home_team_id = t.id THEN
+          CASE WHEN m.home_score > m.away_score THEN 3 WHEN m.home_score = m.away_score THEN 1 ELSE 0 END
+        WHEN m.away_team_id = t.id THEN
+          CASE WHEN m.away_score > m.home_score THEN 3 WHEN m.away_score = m.home_score THEN 1 ELSE 0 END
+        ELSE 0
+      END), 0) as points,
+      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.home_score WHEN m.away_team_id = t.id THEN m.away_score ELSE 0 END), 0) as goals_for,
+      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.away_score WHEN m.away_team_id = t.id THEN m.home_score ELSE 0 END), 0) as goals_against,
+      COALESCE(SUM(CASE WHEN (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.played = 1 THEN 1 ELSE 0 END), 0) as played
+    FROM teams t
+    LEFT JOIN matches m ON (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.stage = 'group'
+    GROUP BY t.id
+  `).all<any>();
 
+  const groups = computeGroupStandings(groupRows.results);
+  const qualified = getQualifiedTeams(groups);
+
+  if (qualified) {
+    const r32Slots = getR32Slots();
+    const r32MatchesInDb = state.matches
+      .filter(m => m.stage === "round_of_32")
+      .sort((a, b) => (a.id || 0) - (b.id || 0));
+
+    const usedThirdGroups = new Set<string>();
+
+    for (let i = 0; i < r32Slots.length && i < r32MatchesInDb.length; i++) {
+      const slot = r32Slots[i];
+      const dbMatch = r32MatchesInDb[i];
+
+      if (dbMatch.home_team_id || dbMatch.away_team_id) continue;
+
+      const homeTeamId = resolveTeamSource(slot.homeSource as any, qualified, usedThirdGroups);
+      const awayTeamId = resolveTeamSource(slot.awaySource as any, qualified, usedThirdGroups);
+
+      if (homeTeamId && awayTeamId) {
+        await db.prepare(`
+          UPDATE matches SET home_team_id = ?, away_team_id = ?, updated_at = datetime('now') WHERE id = ?
+        `).bind(homeTeamId, awayTeamId, dbMatch.id).run();
+        report.r32_teams_assigned++;
+      }
+    }
+  }
+
+  // ── Phase C: one more loop to catch scores for newly-assigned R32 ──
+  if (report.r32_teams_assigned > 0) {
     state = await loadMatchMap(db);
+    await runLoop(MAX_ITERATIONS);
   }
 
   return Response.json({ synced: true, ...report });
