@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS participant_teams (
 CREATE TABLE IF NOT EXISTS matches (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   stage TEXT NOT NULL CHECK (stage IN ('group', 'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final')),
+  match_label TEXT,
   group_letter TEXT,
   home_team_id INTEGER REFERENCES teams(id),
   away_team_id INTEGER REFERENCES teams(id),

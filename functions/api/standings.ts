@@ -138,6 +138,24 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     status: teamStatus[t.id] || null
   }));
 
+  const knockoutMatchesRaw = await db.prepare(`
+    SELECT
+      m.id, m.stage, m.match_label, m.home_score, m.away_score, m.played,
+      ht.name as home_team, ht.flag_emoji as home_flag, ht.id as home_team_id,
+      at.name as away_team, at.flag_emoji as away_flag, at.id as away_team_id
+    FROM matches m
+    LEFT JOIN teams ht ON ht.id = m.home_team_id
+    LEFT JOIN teams at ON at.id = m.away_team_id
+    WHERE m.stage != 'group'
+    ORDER BY m.id
+  `).all();
+
+  const knockoutMatches = knockoutMatchesRaw.results.map((m: any) => ({
+    ...m,
+    home_label: m.match_label || null,
+    away_label: m.match_label || null
+  }));
+
   const flattened = Object.values(groups).flat();
 
   return Response.json({
@@ -145,6 +163,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     participants,
     teams,
     groupStandings: flattened,
-    thirdPlaceRanking: thirdPlaced
+    thirdPlaceRanking: thirdPlaced,
+    knockoutMatches
   });
 }

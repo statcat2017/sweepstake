@@ -33,6 +33,7 @@
         <button class="btn primary" id="draw-btn" onclick="runDraw()">Quick Draw</button>
         <button class="btn danger" id="reset-btn" onclick="resetDraw()">Reset Draw</button>
         <button class="btn outline" id="seed-btn" onclick="seedMatches()">Seed Group Matches</button>
+        <button class="btn outline" id="seed-knockout-btn" onclick="seedKnockout()">Seed Knockout Matches</button>
       </div>
       <div id="draw-result" style="margin-top:12px"></div>
     </div>
@@ -202,6 +203,18 @@
       load();
     } else {
       alert('Failed to seed matches.', 'error');
+    }
+  }
+
+  async function seedKnockout() {
+    const res = await fetch('/api/matches/knockout', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      alert(`Knockout matches seeded! (${data.seeded} matches)`, 'success');
+      load();
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Failed to seed knockout matches.', 'error');
     }
   }
 

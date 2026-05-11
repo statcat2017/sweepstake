@@ -289,8 +289,18 @@ tr.status-third { background: #fefce8; }
   50% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.8); }
 }
 
+.ko-bracket { margin-top: 16px; }
+.ko-layout { display: flex; gap: 24px; overflow-x: auto; padding-bottom: 12px; }
+.ko-round { min-width: 160px; }
+.ko-round h3 { font-size: 13px; text-transform: uppercase; color: var(--gray-500); margin-bottom: 8px; }
+.ko-match { display: flex; flex-direction: column; background: white; border: 1px solid var(--gray-200); border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+.ko-team { padding: 6px 10px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.ko-team.winner { background: #f0fdf4; font-weight: 600; }
+.ko-score { padding: 2px 10px; font-size: 12px; color: var(--gray-400); text-align: center; background: var(--gray-50); border-top: 1px solid var(--gray-100); border-bottom: 1px solid var(--gray-100); }
+
 @media (max-width: 768px) {
   .grid { grid-template-columns: 1fr; }
   .form-row { flex-direction: column; }
   .draw-layout { grid-template-columns: 1fr; }
+  .ko-layout { flex-wrap: wrap; }
 }
