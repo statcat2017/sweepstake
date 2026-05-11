@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Cup 2026 Sweepstake</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <nav class="top-nav">
+    <span class="brand">🏆 Sweepstake 2026</span>
+    <a href="/" class="active">Standings</a>
+    <a href="/admin.html">Admin</a>
+  </nav>
+
+  <div class="container">
+    <div id="app">
+      <div class="empty-state">
+        <h3>Loading...</h3>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  async function load() {
+    const [standingsRes, participantsRes] = await Promise.all([
+      fetch('/api/standings'),
+      fetch('/api/participants')
+    ]);
+    const standings = await standingsRes.json();
+    const participants = await participantsRes.json();
+
+    if (!standings.drawn && !participants.drawn) {
+      document.getElementById('app').innerHTML = `
+        <div class="card empty-state">
+          <h3>Draw hasn't run yet</h3>
+          <p>Head to the admin page to add participants and run the draw.</p>
+          <a href="/admin.html" class="btn primary">Go to Admin</a>
+        </div>
+      `;
+      return;
+    }
+
+    if (!standings.drawn) {
+      document.getElementById('app').innerHTML = `
+        <div class="card empty-state">
+          <h3>Draw hasn't run yet</h3>
+          <p>The admin needs to run the draw first.</p>
+          <a href="/admin.html" class="btn primary">Go to Admin</a>
+        </div>
+      `;
+      return;
+    }
+
+    const totalAlive = standings.participants.reduce((sum, p) => sum + p.alive_count, 0);
+    const totalTeams = standings.participants.reduce((sum, p) => sum + p.team_count, 0);
+    const fullyAlive = standings.participants.filter(p => p.alive_count === p.team_count).length;
+    const allOut = standings.participants.filter(p => p.alive_count === 0).length;
+
+    const grouped = {};
+    for (const row of standings.groupStandings) {
+      if (!grouped[row.group_letter]) grouped[row.group_letter] = [];
+      grouped[row.group_letter].push(row);
+    }
+
+    let html = `
+      <div class="card">
+        <h1>World Cup 2026 Sweepstake</h1>
+        <div class="summary-strip">
+          <div class="summary-stat">
+            <div class="value">${standings.participants.length}</div>
+            <div class="label">Players</div>
+          </div>
+          <div class="summary-stat">
+            <div class="value">${totalAlive}/${totalTeams}</div>
+            <div class="label">Teams Alive</div>
+          </div>
+          <div class="summary-stat">
+            <div class="value">${fullyAlive}</div>
+            <div class="label">All Alive</div>
+          </div>
+          <div class="summary-stat">
+            <div class="value">${allOut}</div>
+            <div class="label">Eliminated</div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Participants</h2>
+      <div class="grid">
+    `;
+
+    for (const p of standings.participants) {
+      const playerTeams = standings.teams.filter(t => t.participant_ids?.split(',').includes(String(p.id)));
+      html += `
+        <div class="participant-card">
+          <h3>${p.name}</h3>
+          <div style="margin-bottom:6px">
+            <span class="badge ${p.alive_count > 0 ? 'alive' : 'eliminated'}">
+              ${p.alive_count}/${p.team_count} alive
+            </span>
+          </div>
+          <div>${playerTeams.map(t => `
+            <span class="team-chip ${t.eliminated ? 'eliminated' : ''}">
+              ${t.flag_emoji} ${t.name} (${t.group_letter})
+            </span>
+          `).join('')}</div>
+        </div>
+      `;
+    }
+
+    html += `</div><h2 style="margin-top:24px">Group Standings</h2>`;
+
+    for (const [group, rows] of Object.entries(grouped)) {
+      html += `
+        <div class="group-section">
+          <h3>Group ${group}</h3>
+          <table class="standings-table">
+            <thead><tr>
+              <th class="pos">#</th>
+              <th>Team</th>
+              <th>Pld</th>
+              <th>GF</th>
+              <th>GA</th>
+              <th>GD</th>
+              <th class="pts">Pts</th>
+              <th></th>
+            </tr></thead>
+            <tbody>
+      `;
+
+      rows.forEach((r, i) => {
+        const gd = r.goals_for - r.goals_against;
+        const gdStr = gd > 0 ? `+${gd}` : String(gd);
+        html += `<tr${r.eliminated ? ' style="opacity:0.4;text-decoration:line-through"' : ''}>
+          <td class="pos">${i + 1}</td>
+          <td>${r.flag_emoji} ${r.team_name}</td>
+          <td>${r.played}</td>
+          <td>${r.goals_for}</td>
+          <td>${r.goals_against}</td>
+          <td>${gdStr}</td>
+          <td class="pts">${r.points}</td>
+          <td>${r.eliminated ? '<span class="badge eliminated">OUT</span>' : '<span class="badge alive">LIVE</span>'}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+    }
+
+    document.getElementById('app').innerHTML = html;
+  }
+
+  load();
+  </script>
+</body>
+</html>
