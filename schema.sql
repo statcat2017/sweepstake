@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS sweepstake (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+INSERT OR IGNORE INTO sweepstake (id, drawn) VALUES (1, 0);
 
 -- World Cup teams
 CREATE TABLE IF NOT EXISTS teams (
