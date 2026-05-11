@@ -250,7 +250,7 @@
         const gd = gf - ga;
         const gdStr = gd > 0 ? `+${gd}` : String(gd);
         const zeroHero = pts == 0 && gf == 0 && pld > 0;
-        const statusClass = r.status === 'qualified' || r.status === 'qualifying' ? 'status-qualified' : (r.status === 'eliminated' || r.status === 'eliminating' ? 'status-eliminated' : (r.status === 'third' ? 'status-third' : ''));
+        const statusClass = r.status === 'qualified' || r.status === 'qualifying' ? 'status-qualified' : (r.status === 'eliminated' || r.status === 'eliminating' ? 'status-eliminated' : 'status-third');
         const statusBadge = zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : (r.status === 'eliminated' ? '<span class="badge eliminated">OUT</span>' : (r.status === 'third' ? '<span class="badge third">TBD</span>' : '<span class="badge alive">LIVE</span>')));
         html += `<tr class="${statusClass} ${zeroHero ? 'zero-hero' : ''}">
           <td class="pos">${r.position ?? '-'}</td>
