@@ -116,15 +116,19 @@
 
     const matchList = document.getElementById('match-list');
     if (matches.matches?.length) {
-      const byStage = {};
-      for (const m of matches.matches) {
-        const stage = m.stage === 'group' ? `Group ${m.group_letter}` : m.stage.replace(/_/g, ' ');
-        if (!byStage[stage]) byStage[stage] = [];
-        byStage[stage].push(m);
-      }
+      const groupMatches = matches.matches.filter(m => m.stage === 'group');
+      if (groupMatches.length === 0) {
+        matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
+      } else {
+        const byStage = {};
+        for (const m of groupMatches) {
+          const stage = `Group ${m.group_letter}`;
+          if (!byStage[stage]) byStage[stage] = [];
+          byStage[stage].push(m);
+        }
 
-      matchList.innerHTML = '';
-      for (const [stage, stageMatches] of Object.entries(byStage)) {
+        matchList.innerHTML = '';
+        for (const [stage, stageMatches] of Object.entries(byStage)) {
         let html = `<h3 style="margin:12px 0 8px;font-size:15px">${stage}</h3>`;
         for (const m of stageMatches) {
           html += `
