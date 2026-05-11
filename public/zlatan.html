@@ -28,9 +28,9 @@
 
     <div class="card">
       <h2>Draw</h2>
-      <p>Randomly assign teams to participants. This locks the draw.</p>
+      <p>Quick Draw instantly assigns teams. (The front page has a fun animated version.)</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn primary" id="draw-btn" onclick="runDraw()">Run Draw</button>
+        <button class="btn primary" id="draw-btn" onclick="runDraw()">Quick Draw</button>
         <button class="btn danger" id="reset-btn" onclick="resetDraw()">Reset Draw</button>
         <button class="btn outline" id="seed-btn" onclick="seedMatches()">Seed Group Matches</button>
       </div>
@@ -178,7 +178,7 @@
       const err = await res.json();
       alert(err.error, 'error');
       document.getElementById('draw-btn').disabled = false;
-      document.getElementById('draw-btn').textContent = 'Run Draw';
+      document.getElementById('draw-btn').textContent = 'Quick Draw';
     }
   }
 
