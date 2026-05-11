@@ -208,6 +208,20 @@ input, select {
   color: var(--gray-500);
 }
 
+.zero-hero-stat .value { color: var(--amber); }
+.zero-hero-stat .label { color: var(--amber); }
+
+tr.zero-hero {
+  background: #fef3c7;
+}
+
+.badge.zero-hero-badge {
+  background: #fef3c7;
+  color: var(--amber);
+  font-size: 14px;
+  padding: 0 6px;
+}
+
 .empty-state {
   text-align: center;
   padding: 48px 24px;
