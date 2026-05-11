@@ -196,6 +196,11 @@
             <div class="value">${zeroHeroes}</div>
             <div class="label">🪫 Money Back</div>
           </div>
+          ${standings.mostConceded && standings.mostConceded.goals_against > 0 ? `
+          <div class="summary-stat" style="text-align:center">
+            <div class="value">${standings.mostConceded.flag_emoji} ${standings.mostConceded.goals_against}</div>
+            <div class="label">Most Conceded (${standings.mostConceded.name})</div>
+          </div>` : ''}
         </div>
       </div>
 

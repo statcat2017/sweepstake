@@ -154,12 +154,22 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
   const flattened = Object.values(groups).flat();
 
+  const mostConceded = flattened.reduce((worst: any, team: any) => {
+    return (team.goals_against ?? 0) > (worst.goals_against ?? 0) ? team : worst;
+  }, flattened[0] || null);
+
   return Response.json({
     drawn: true,
     participants,
     teams,
     groupStandings: flattened,
     thirdPlaceRanking: thirdPlaced,
-    knockoutMatches
+    knockoutMatches,
+    mostConceded: mostConceded ? {
+      name: mostConceded.team_name,
+      flag_emoji: mostConceded.flag_emoji,
+      goals_against: mostConceded.goals_against ?? 0,
+      played: mostConceded.played ?? 0
+    } : null
   });
 }
