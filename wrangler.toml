@@ -1,0 +1,8 @@
+name = "sweepstake"
+compatibility_date = "2026-05-11"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sweepstake-db"
+database_id = "f0ecb20d-cea1-4404-b9bc-34e9ae971808"
