@@ -33,7 +33,6 @@
         <button class="btn primary" id="draw-btn" onclick="runDraw()">Quick Draw</button>
         <button class="btn danger" id="reset-btn" onclick="resetDraw()">Reset Draw</button>
         <button class="btn outline" id="seed-btn" onclick="seedMatches()">Seed Group Matches</button>
-        <button class="btn outline" id="seed-knockout-btn" onclick="seedKnockout()">Seed Knockout Matches</button>
       </div>
       <div id="draw-result" style="margin-top:12px"></div>
     </div>
@@ -43,10 +42,23 @@
       <p>Enter scores for played matches.</p>
       <div id="match-list"></div>
     </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:12px">Knockout Bracket</h2>
+      <p>Set up Round of 32 matchups, then enter scores. Click "Advance Winners" to auto-populate later rounds.</p>
+      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" onclick="seedKnockout()">Seed Knockout Bracket</button>
+        <button class="btn outline" onclick="saveKnockoutTeams()">Save Team Selections</button>
+        <button class="btn outline" onclick="advanceWinners()">Advance Winners</button>
+      </div>
+      <div id="bracket-editor"></div>
+    </div>
   </div>
 
   <script>
   let drawLocked = false;
+  let knockouts = [];
+  let eligibleTeams = [];
 
   function alert(msg, type) {
     document.getElementById('alert-area').innerHTML = `<div class="alert ${type}">${msg}</div>`;
@@ -54,14 +66,16 @@
   }
 
   async function load() {
-    const [partRes, matchRes, stateRes] = await Promise.all([
+    const [partRes, matchRes, stateRes, knockRes] = await Promise.all([
       fetch('/api/participants'),
       fetch('/api/matches'),
-      fetch('/api/standings')
+      fetch('/api/standings'),
+      fetch('/api/matches/knockout')
     ]);
     const participants = await partRes.json();
     const matches = await matchRes.json();
     const standings = await stateRes.json();
+    const knocks = await knockRes.json();
 
     drawLocked = participants.drawn;
     document.getElementById('draw-btn').disabled = drawLocked || participants.participants.length < 2;
@@ -116,9 +130,9 @@
           html += `
             <div class="match-card">
               <div class="teams">
-                <span>${m.home_flag || ''} ${m.home_team}</span>
+                <span>${m.home_flag || ''} ${m.home_team || m.home_label || 'TBD'}</span>
                 <span class="vs">vs</span>
-                <span>${m.away_flag || ''} ${m.away_team}</span>
+                <span>${m.away_flag || ''} ${m.away_team || m.away_label || 'TBD'}</span>
               </div>
               <div class="score">
                 <input type="text" inputmode="numeric" pattern="[0-9]*" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
@@ -133,6 +147,164 @@
       }
     } else {
       matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
+    }
+
+    renderBracketEditor(knocks);
+  }
+
+  function renderBracketEditor(knocks) {
+    const container = document.getElementById('bracket-editor');
+    if (!knocks.matches || knocks.matches.length === 0) {
+      container.innerHTML = '<p style="color:var(--gray-400)">No knockout bracket yet. Click "Seed Knockout Bracket" to create it.</p>';
+      return;
+    }
+
+    knockouts = knocks.matches;
+    eligibleTeams = knocks.eligibleTeams || [];
+
+    const stages = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'];
+    const stageLabels = {
+      round_of_32: 'Round of 32',
+      round_of_16: 'Round of 16',
+      quarter_final: 'Quarter-Final',
+      semi_final: 'Semi-Final',
+      third_place: '3rd Place',
+      final: 'Final'
+    };
+
+    const byStage = {};
+    for (const m of knockouts) {
+      if (!byStage[m.stage]) byStage[m.stage] = [];
+      byStage[m.stage].push(m);
+    }
+
+    let html = '<div class="ko-layout">';
+    for (const stage of stages) {
+      const matches = byStage[stage] || [];
+      if (!matches.length) continue;
+      html += `<div class="ko-round"><h3>${stageLabels[stage]}</h3>`;
+      for (const m of matches) {
+        const isR32 = stage === 'round_of_32';
+        const homeTeam = m.home_team_id ? `${m.home_flag || ''} ${m.home_team}` : null;
+        const awayTeam = m.away_team_id ? `${m.away_flag || ''} ${m.away_team}` : null;
+
+        html += `<div class="ko-match" style="margin-bottom:8px">`;
+        if (isR32) {
+          html += `<select id="ko-home-${m.id}" class="ko-select">`;
+          html += `<option value="">-- Home Team --</option>`;
+          for (const t of eligibleTeams) {
+            const selected = t.id === m.home_team_id ? ' selected' : '';
+            html += `<option value="${t.id}"${selected}>${t.flag_emoji} ${t.name} (${t.group_letter})</option>`;
+          }
+          html += `</select>`;
+          html += `<div class="ko-score-input">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+            <span>–</span>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+          </div>`;
+          html += `<select id="ko-away-${m.id}" class="ko-select">`;
+          html += `<option value="">-- Away Team --</option>`;
+          for (const t of eligibleTeams) {
+            const selected = t.id === m.away_team_id ? ' selected' : '';
+            html += `<option value="${t.id}"${selected}>${t.flag_emoji} ${t.name} (${t.group_letter})</option>`;
+          }
+          html += `</select>`;
+        } else {
+          const hWon = m.home_score != null && m.away_score != null && m.home_score > m.away_score;
+          const aWon = m.home_score != null && m.away_score != null && m.away_score > m.home_score;
+          html += `<span class="ko-team${hWon ? ' winner' : ''}">${homeTeam || m.match_label || 'TBD'}</span>
+            <div class="ko-score-input">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+              <span>–</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+            </div>
+            <span class="ko-team${aWon ? ' winner' : ''}">${awayTeam || m.match_label || 'TBD'}</span>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+
+    container.innerHTML = html;
+  }
+
+  async function seedKnockout() {
+    const res = await fetch('/api/matches/knockout', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      alert(`Knockout bracket seeded! (${data.seeded} matches)`, 'success');
+      load();
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Failed to seed knockout bracket.', 'error');
+    }
+  }
+
+  async function saveKnockoutTeams() {
+    let count = 0;
+    // First save all team selections for R32
+    for (const m of knockouts) {
+      if (m.stage !== 'round_of_32') continue;
+      const homeSel = document.getElementById(`ko-home-${m.id}`);
+      const awaySel = document.getElementById(`ko-away-${m.id}`);
+      if (!homeSel || !awaySel) continue;
+
+      const homeId = homeSel.value ? parseInt(homeSel.value) : null;
+      const awayId = awaySel.value ? parseInt(awaySel.value) : null;
+      const homeScore = document.getElementById(`ko-hs-${m.id}`).value;
+      const awayScore = document.getElementById(`ko-as-${m.id}`).value;
+
+      const body = { id: m.id };
+      if (homeId !== m.home_team_id) body.home_team_id = homeId;
+      if (awayId !== m.away_team_id) body.away_team_id = awayId;
+      if (homeScore !== String(m.home_score ?? '')) body.home_score = homeScore !== '' ? parseInt(homeScore) : null;
+      if (awayScore !== String(m.away_score ?? '')) body.away_score = awayScore !== '' ? parseInt(awayScore) : null;
+
+      if (Object.keys(body).length <= 1) continue;
+
+      await fetch('/api/matches/knockout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      count++;
+    }
+
+    // Also save scores for non-R32 matches
+    for (const m of knockouts) {
+      if (m.stage === 'round_of_32') continue;
+      const homeScore = document.getElementById(`ko-hs-${m.id}`)?.value;
+      const awayScore = document.getElementById(`ko-as-${m.id}`)?.value;
+      if (!homeScore && !awayScore) continue;
+      if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
+
+      await fetch('/api/matches/knockout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: m.id,
+          home_score: homeScore !== '' ? parseInt(homeScore) : null,
+          away_score: awayScore !== '' ? parseInt(awayScore) : null
+        })
+      });
+      count++;
+    }
+
+    if (count > 0) {
+      alert(`Saved ${count} updates!`, 'success');
+      load();
+    }
+  }
+
+  async function advanceWinners() {
+    const res = await fetch('/api/matches/advance', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      alert(`Advanced ${data.advanced} matches!`, 'success');
+      load();
+    } else {
+      alert('Failed to advance winners.', 'error');
     }
   }
 
@@ -203,18 +375,6 @@
       load();
     } else {
       alert('Failed to seed matches.', 'error');
-    }
-  }
-
-  async function seedKnockout() {
-    const res = await fetch('/api/matches/knockout', { method: 'POST' });
-    if (res.ok) {
-      const data = await res.json();
-      alert(`Knockout matches seeded! (${data.seeded} matches)`, 'success');
-      load();
-    } else {
-      const err = await res.json();
-      alert(err.error || 'Failed to seed knockout matches.', 'error');
     }
   }
 

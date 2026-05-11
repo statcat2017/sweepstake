@@ -141,6 +141,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   const knockoutMatchesRaw = await db.prepare(`
     SELECT
       m.id, m.stage, m.match_label, m.home_score, m.away_score, m.played,
+      m.feeder_1_id, m.feeder_2_id,
       ht.name as home_team, ht.flag_emoji as home_flag, ht.id as home_team_id,
       at.name as away_team, at.flag_emoji as away_flag, at.id as away_team_id
     FROM matches m

@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS matches (
   home_score INTEGER,
   away_score INTEGER,
   played INTEGER NOT NULL DEFAULT 0,
+  feeder_1_id INTEGER REFERENCES matches(id),
+  feeder_2_id INTEGER REFERENCES matches(id),
   knockout_bracket_slot INTEGER,
   kickoff_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
