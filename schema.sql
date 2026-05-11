@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS matches (
   feeder_2_id INTEGER REFERENCES matches(id),
   knockout_bracket_slot INTEGER,
   kickoff_at TEXT,
-  api_fixture_id INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -61,6 +60,8 @@ CREATE TABLE IF NOT EXISTS knockout_picks (
   team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   UNIQUE(participant_id, match_id)
 );
+
+ALTER TABLE matches ADD COLUMN api_fixture_id INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_teams_group ON teams(group_letter);
 CREATE INDEX IF NOT EXISTS idx_matches_stage ON matches(stage);

@@ -82,7 +82,8 @@ export function getQualifiedTeams(groups: Record<string, TeamWithGroup[]>): Qual
 
 export function resolveTeamSource(
   source: { type: string; group?: string; groups?: string[] },
-  qualified: QualifiedTeams
+  qualified: QualifiedTeams,
+  usedThirdGroups?: Set<string>
 ): number | null {
   if (source.type === "winner") {
     const t = qualified.winners.find(w => w.group_letter === source.group);
@@ -94,7 +95,8 @@ export function resolveTeamSource(
   }
   if (source.type === "best-third" && source.groups) {
     for (const t of qualified.bestThird) {
-      if (source.groups.includes(t.group_letter)) {
+      if (source.groups.includes(t.group_letter) && !usedThirdGroups?.has(t.group_letter)) {
+        usedThirdGroups?.add(t.group_letter);
         return t.id;
       }
     }

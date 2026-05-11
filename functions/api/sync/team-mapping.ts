@@ -27,5 +27,5 @@ export function apiNameToDbName(apiName: string): string | null {
     }
   }
 
-  return null;
+  return apiName;
 }

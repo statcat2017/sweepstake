@@ -200,12 +200,14 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
       .filter(m => m.stage === "round_of_32")
       .sort((a, b) => (a.id || 0) - (b.id || 0));
 
+    const usedThirdGroups = new Set<string>();
+
     for (let i = 0; i < r32Slots.length && i < r32MatchesInDb.length; i++) {
       const slot = r32Slots[i];
       const dbMatch = r32MatchesInDb[i];
 
-      const homeTeamId = resolveTeamSource(slot.homeSource as any, qualified);
-      const awayTeamId = resolveTeamSource(slot.awaySource as any, qualified);
+      const homeTeamId = resolveTeamSource(slot.homeSource as any, qualified, usedThirdGroups);
+      const awayTeamId = resolveTeamSource(slot.awaySource as any, qualified, usedThirdGroups);
 
       if (homeTeamId && awayTeamId) {
         if (dbMatch.home_team_id !== homeTeamId || dbMatch.away_team_id !== awayTeamId) {
@@ -243,13 +245,15 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
 
       const isThird = child.stage === "third_place";
 
-      const p1Winner = p1.home_score > p1.away_score ? p1.home_team_id : p1.away_team_id;
-      const p1Loser = p1.home_score > p1.away_score ? p1.away_team_id : p1.home_team_id;
-      const p2Winner = p2.home_score > p2.away_score ? p2.home_team_id : p2.away_team_id;
-      const p2Loser = p2.home_score > p2.away_score ? p2.away_team_id : p2.home_team_id;
+      const p1Winner = p1.home_score > p1.away_score ? p1.home_team_id : (p1.away_score > p1.home_score ? p1.away_team_id : null);
+      const p1Loser = p1.home_score > p1.away_score ? p1.away_team_id : (p1.away_score > p1.home_score ? p1.home_team_id : null);
+      const p2Winner = p2.home_score > p2.away_score ? p2.home_team_id : (p2.away_score > p2.home_score ? p2.away_team_id : null);
+      const p2Loser = p2.home_score > p2.away_score ? p2.away_team_id : (p2.away_score > p2.home_score ? p2.home_team_id : null);
 
       const homeId = isThird ? p1Loser : p1Winner;
       const awayId = isThird ? p2Loser : p2Winner;
+
+      if (homeId == null || awayId == null) continue;
 
       if (homeId !== child.home_team_id || awayId !== child.away_team_id) {
         await db.prepare(`
