@@ -164,7 +164,7 @@
     const totalTeams = standings.participants.reduce((sum, p) => sum + p.team_count, 0);
     const fullyAlive = standings.participants.filter(p => p.alive_count === p.team_count).length;
     const allOut = standings.participants.filter(p => p.alive_count === 0).length;
-    const zeroHeroes = (standings.groupStandings || []).filter(r => r.points == 0 && r.goals_for == 0 && r.played > 0).length;
+    const zeroHeroes = (standings.groupStandings || []).filter(r => (r.points ?? 0) == 0 && (r.goals_for ?? 0) == 0 && (r.played ?? 0) > 0).length;
 
     const grouped = {};
     for (const row of standings.groupStandings) {
@@ -243,17 +243,21 @@
       `;
 
       rows.forEach((r, i) => {
-        const gd = r.goals_for - r.goals_against;
+        const gf = r.goals_for ?? 0;
+        const ga = r.goals_against ?? 0;
+        const pts = r.points ?? 0;
+        const pld = r.played ?? 0;
+        const gd = gf - ga;
         const gdStr = gd > 0 ? `+${gd}` : String(gd);
-        const zeroHero = r.points == 0 && r.goals_for == 0 && r.played > 0;
+        const zeroHero = pts == 0 && gf == 0 && pld > 0;
         html += `<tr class="${zeroHero ? 'zero-hero' : ''}"${r.eliminated ? ' style="opacity:0.4;text-decoration:line-through"' : ''}>
           <td class="pos">${i + 1}</td>
           <td>${r.flag_emoji} ${r.team_name}</td>
-          <td>${r.played}</td>
-          <td>${r.goals_for}</td>
-          <td>${r.goals_against}</td>
+          <td>${pld}</td>
+          <td>${gf}</td>
+          <td>${ga}</td>
           <td>${gdStr}</td>
-          <td class="pts">${r.points}</td>
+          <td class="pts">${pts}</td>
           <td>${zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (r.eliminated ? '<span class="badge eliminated">OUT</span>' : '<span class="badge alive">LIVE</span>')}</td>
         </tr>`;
       });
