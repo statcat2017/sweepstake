@@ -291,11 +291,10 @@
         const pld = r.played ?? 0;
         const gd = gf - ga;
         const gdStr = gd > 0 ? `+${gd}` : String(gd);
-        const isQualified = r.status === 'qualified';
-        const isEliminated = r.status === 'eliminated';
+        const isDefinitive = r.status === 'qualified' || r.status === 'eliminated';
         const zeroHero = pts == 0 && gf == 0 && pld > 0;
-        const rowClass = isQualified ? 'status-qualified' : (isEliminated ? 'status-eliminated' : 'status-third');
-        const badge = zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (isQualified ? '<span class="badge alive">Q</span>' : (isEliminated ? '<span class="badge eliminated">OUT</span>' : '<span class="badge third">TBD</span>'));
+        const rowClass = r.third_rank <= 8 ? 'status-qualified' : 'status-eliminated';
+        const badge = zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (isDefinitive ? (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : '<span class="badge eliminated">OUT</span>') : '<span class="badge third">TBD</span>');
         html += `<tr class="${rowClass} ${zeroHero ? 'zero-hero' : ''}">
           <td class="pos">${r.third_rank}</td>
           <td>${r.flag_emoji} ${r.team_name}</td>
