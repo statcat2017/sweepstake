@@ -215,7 +215,61 @@ input, select {
 
 .empty-state h3 { color: var(--gray-600); margin-bottom: 8px; }
 
+.draw-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.draw-participants h2,
+.draw-pool h2 {
+  margin-bottom: 12px;
+}
+
+.team-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+}
+
+.team-pool .team-chip {
+  transition: all 0.3s ease;
+}
+
+.team-pool .team-chip.selected {
+  border: 2px solid var(--blue);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+  animation: pulse 1s ease-in-out infinite;
+  transform: scale(1.05);
+}
+
+.team-pool .team-chip.assigned {
+  opacity: 0.3;
+  text-decoration: line-through;
+}
+
+.participant-card.revealed {
+  border-color: var(--green) !important;
+  transition: border-color 0.3s ease;
+}
+
+.draw-status {
+  text-align: center;
+  font-size: 20px;
+  padding: 16px;
+  font-weight: 700;
+  color: var(--gray-700);
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(37, 99, 235, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.8); }
+}
+
 @media (max-width: 768px) {
   .grid { grid-template-columns: 1fr; }
   .form-row { flex-direction: column; }
+  .draw-layout { grid-template-columns: 1fr; }
 }
