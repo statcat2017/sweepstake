@@ -1,11 +1,9 @@
-import { getDb } from "./db";
+import { getDb, isDrawLocked } from "./db";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
   const db = getDb(context.env);
 
-  const state = await db.prepare("SELECT drawn FROM sweepstake WHERE id = 1").first<{ drawn: number }>();
-
-  if (!state?.drawn) {
+  if (!(await isDrawLocked(db))) {
     return Response.json({ drawn: false, standings: [], participants: [] });
   }
 

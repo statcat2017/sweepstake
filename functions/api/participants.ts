@@ -1,14 +1,14 @@
-import { getDb } from "./db";
+import { getDb, isDrawLocked } from "./db";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
   const db = getDb(context.env);
 
   if (context.request.method === "GET") {
-    const state = await db.prepare("SELECT drawn FROM sweepstake WHERE id = 1").first<{ drawn: number }>();
+    const drawn = await isDrawLocked(db);
     const participants = await db.prepare("SELECT id, name, created_at FROM participants ORDER BY name").all();
 
     return Response.json({
-      drawn: state?.drawn ?? false,
+      drawn,
       participants: participants.results
     });
   }
@@ -21,9 +21,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       return Response.json({ error: "Participant name is required." }, { status: 400 });
     }
 
-    const state = await db.prepare("SELECT drawn FROM sweepstake WHERE id = 1").first<{ drawn: number }>();
-
-    if (state?.drawn) {
+    if (await isDrawLocked(db)) {
       return Response.json({ error: "Draw is locked. Reset it before adding participants." }, { status: 409 });
     }
 
@@ -36,9 +34,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   if (context.request.method === "DELETE") {
-    const state = await db.prepare("SELECT drawn FROM sweepstake WHERE id = 1").first<{ drawn: number }>();
-
-    if (state?.drawn) {
+    if (await isDrawLocked(db)) {
       return Response.json({ error: "Draw is locked. Reset it before removing participants." }, { status: 409 });
     }
 
