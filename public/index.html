@@ -214,7 +214,7 @@
             </span>
           </div>
           <div>${playerTeams.map(t => `
-            <span class="team-chip ${t.status === 'eliminated' || t.status === 'eliminating' ? 'eliminated' : ''}">
+            <span class="team-chip ${t.status === 'eliminated' ? 'eliminated' : ''}">
               ${t.flag_emoji} ${t.name} (${t.group_letter})${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
             </span>
           `).join('')}</div>
