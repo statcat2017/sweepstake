@@ -44,9 +44,9 @@ async function handleDraw(db: D1Database): Promise<Response> {
     }
   }
 
-  while (teamIndex < teams.results.length) {
-    const luckyIndex = Math.floor(Math.random() * participants.results.length);
-    assignments.push({ participant_id: participants.results[luckyIndex].id, team_id: teams.results[teamIndex].id, bonus: 1 });
+  const luckyParticipants = [...participants.results].sort(() => Math.random() - 0.5).slice(0, teams.results.length - teamIndex);
+  for (const participant of luckyParticipants) {
+    assignments.push({ participant_id: participant.id, team_id: teams.results[teamIndex].id, bonus: 1 });
     teamIndex++;
   }
 
