@@ -2,7 +2,6 @@ import { getDb } from "./db";
 import { requireAuth } from "./auth";
 import { apiNameToDbName, dbNameToApiName } from "./sync/team-mapping";
 import { getBracketDAG } from "./sync/bracket-paths";
-import { computeGroupStandings } from "./sync/standings-helper";
 
 interface Env {
   DB: D1Database;
@@ -39,7 +38,6 @@ interface SyncReport {
   group_scores_skipped: number;
   knockout_scores_updated: number;
   knockout_scores_skipped: number;
-  r32_teams_assigned: number;
   penalty_winners_set: number;
   r16_advanced: number;
   qf_advanced: number;
@@ -74,7 +72,6 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
     group_scores_skipped: 0,
     knockout_scores_updated: 0,
     knockout_scores_skipped: 0,
-    r32_teams_assigned: 0,
     penalty_winners_set: 0,
     r16_advanced: 0,
     qf_advanced: 0,
@@ -117,29 +114,21 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
     return null;
   }
 
-  function winnerLogic(home: number, away: number) {
-    return home > away ? { winner: "home", loser: "away" } : away > home ? { winner: "away", loser: "home" } : { winner: null, loser: null };
-  }
-
-  // ── Phase 1: update existing scores ──
-  let state = await loadMatchMap(db);
-  const processedFixtureIds = new Set<number>();
-
-  for (const fixture of fixtures) {
+  async function processFixture(fixture: any, state: { byTeamPair: Map<string, any[]> }): Promise<number> {
     const status = fixture.fixture?.status?.short;
-    if (!status || !finishedStatuses.has(status)) continue;
+    if (!status || !finishedStatuses.has(status)) return 0;
 
     const apiHomeName: string | undefined = fixture.teams?.home?.name;
     const apiAwayName: string | undefined = fixture.teams?.away?.name;
-    if (!apiHomeName || !apiAwayName) continue;
+    if (!apiHomeName || !apiAwayName) return 0;
 
     const homeScore: number | null = fixture.goals?.home;
     const awayScore: number | null = fixture.goals?.away;
-    if (homeScore === null || awayScore === null) continue;
+    if (homeScore === null || awayScore === null) return 0;
 
     const homeId = resolveTeam(apiHomeName);
     const awayId = resolveTeam(apiAwayName);
-    if (!homeId || !awayId) continue;
+    if (!homeId || !awayId) return 0;
 
     const round = (fixture.league?.round || "") as string;
     const isGroup = round.startsWith("Group");
@@ -153,185 +142,115 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
       if (isGroup && c.stage === "group") { match = c; break; }
       if (!isGroup && c.stage !== "group") { match = c; break; }
     }
-
-    if (!match) continue;
-
-    processedFixtureIds.add(apiFixtureId ?? 0);
+    if (!match) return 0;
 
     const scoreChanged = match.home_score !== homeScore || match.away_score !== awayScore || !match.played;
 
     let winnerTeamId: number | null = null;
     if (isPenalty && !isGroup) {
-      const homeWon = fixture.teams?.home?.winner === true;
-      const awayWon = fixture.teams?.away?.winner === true;
-      if (homeWon) winnerTeamId = homeId;
-      else if (awayWon) winnerTeamId = awayId;
+      if (fixture.teams?.home?.winner === true) winnerTeamId = homeId;
+      else if (fixture.teams?.away?.winner === true) winnerTeamId = awayId;
     }
 
-    const kickoffAt: string | null = fixture.fixture?.date || null;
-
-    if (scoreChanged || (winnerTeamId && match.winner_team_id !== winnerTeamId)) {
-      await db.prepare(`
-        UPDATE matches
-        SET home_score = ?, away_score = ?, played = 1,
-            kickoff_at = COALESCE(?, kickoff_at),
-            api_fixture_id = COALESCE(?, api_fixture_id),
-            winner_team_id = COALESCE(?, winner_team_id),
-            updated_at = datetime('now')
-        WHERE id = ?
-      `).bind(homeScore, awayScore, kickoffAt, apiFixtureId, winnerTeamId, match.id).run();
-
-      if (isGroup) report.group_scores_updated++;
-      else report.knockout_scores_updated++;
-      if (winnerTeamId && match.winner_team_id !== winnerTeamId) report.penalty_winners_set++;
-    } else {
+    if (!scoreChanged && (!winnerTeamId || match.winner_team_id === winnerTeamId)) {
       if (isGroup) report.group_scores_skipped++;
       else report.knockout_scores_skipped++;
+      return 0;
     }
+
+    await db.prepare(`
+      UPDATE matches
+      SET home_score = ?, away_score = ?, played = 1,
+          kickoff_at = COALESCE(?, kickoff_at),
+          api_fixture_id = COALESCE(?, api_fixture_id),
+          winner_team_id = COALESCE(?, winner_team_id),
+          updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(homeScore, awayScore, fixture.fixture?.date || null, apiFixtureId, winnerTeamId, match.id).run();
+
+    if (isGroup) report.group_scores_updated++;
+    else report.knockout_scores_updated++;
+    if (winnerTeamId && match.winner_team_id !== winnerTeamId) report.penalty_winners_set++;
+
+    return 1;
   }
 
-  // ── Phase 2: assign R32 teams from API fixtures ──
-  const emptyR32 = state.matches.filter(m => m.stage === "round_of_32" && !m.home_team_id && !m.away_team_id);
-  let r32SlotIdx = 0;
+  async function tryAdvance(): Promise<number> {
+    const bracketMatches = await db.prepare(`
+      SELECT id, stage, match_label, home_score, away_score, played,
+             home_team_id, away_team_id, winner_team_id, feeder_1_id, feeder_2_id
+      FROM matches WHERE stage != 'group' ORDER BY id
+    `).all<any>();
 
-  for (const fixture of fixtures) {
-    if (r32SlotIdx >= emptyR32.length) break;
+    const labelToMatch = new Map<string, any>();
+    for (const m of bracketMatches.results) {
+      if (m.match_label) labelToMatch.set(m.match_label, m);
+    }
 
-    const round = (fixture.league?.round || "") as string;
-    if (!round.toLowerCase().includes("round of 32")) continue;
+    let advances = 0;
+    const dag = getBracketDAG();
 
-    if (processedFixtureIds.has(fixture.fixture?.id)) continue;
+    for (const link of dag) {
+      const child = labelToMatch.get(link.childLabel);
+      const p1 = labelToMatch.get(link.parent1Label);
+      const p2 = labelToMatch.get(link.parent2Label);
+      if (!child || !p1 || !p2) continue;
 
-    const homeScore: number | null = fixture.goals?.home;
-    const awayScore: number | null = fixture.goals?.away;
-    if (homeScore === null || awayScore === null) continue;
+      const p1Done = p1.home_score != null && p1.away_score != null && p1.played === 1;
+      const p2Done = p2.home_score != null && p2.away_score != null && p2.played === 1;
+      if (!p1Done || !p2Done) continue;
 
-    const homeId = resolveTeam(fixture.teams?.home?.name);
-    const awayId = resolveTeam(fixture.teams?.away?.name);
-    if (!homeId || !awayId) continue;
+      const isThird = child.stage === "third_place";
 
-    const slot = emptyR32[r32SlotIdx];
-    await db.prepare("UPDATE matches SET home_team_id = ?, away_team_id = ?, updated_at = datetime('now') WHERE id = ?")
-      .bind(homeId, awayId, slot.id).run();
+      function getWinnerAndLoser(m: any): { winner: number | null; loser: number | null } {
+        if (m.home_score > m.away_score) return { winner: m.home_team_id, loser: m.away_team_id };
+        if (m.away_score > m.home_score) return { winner: m.away_team_id, loser: m.home_team_id };
+        if (m.winner_team_id) {
+          const loser = m.winner_team_id === m.home_team_id ? m.away_team_id : m.home_team_id;
+          return { winner: m.winner_team_id, loser };
+        }
+        return { winner: null, loser: null };
+      }
 
-    slot.home_team_id = homeId;
-    slot.away_team_id = awayId;
-    state.byTeamPair.set(`${homeId}-${awayId}`, [slot]);
+      const r1 = getWinnerAndLoser(p1);
+      const r2 = getWinnerAndLoser(p2);
+      if (r1.winner == null || r2.winner == null) continue;
 
-    report.r32_teams_assigned++;
-    r32SlotIdx++;
+      const homeId = isThird ? r1.loser : r1.winner;
+      const awayId = isThird ? r2.loser : r2.winner;
+
+      if (homeId !== child.home_team_id || awayId !== child.away_team_id) {
+        await db.prepare(`
+          UPDATE matches SET home_team_id = ?, away_team_id = ?, updated_at = datetime('now') WHERE id = ?
+        `).bind(homeId, awayId, child.id).run();
+
+        advances++;
+        if (child.stage === "round_of_16") report.r16_advanced++;
+        else if (child.stage === "quarter_final") report.qf_advanced++;
+        else if (child.stage === "semi_final") report.sf_advanced++;
+        else report.final_advanced++;
+      }
+    }
+
+    return advances;
   }
 
-  // ── Phase 3: refresh and catch KO scores for newly-assigned R32 ──
-  if (r32SlotIdx > 0) {
-    state = await loadMatchMap(db);
+  // ── Main loop: score → advance → reload → repeat until stuck ──
+  const MAX_ITERATIONS = 6;
+  let state = await loadMatchMap(db);
+
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+    let scoreChanges = 0;
 
     for (const fixture of fixtures) {
-      if (processedFixtureIds.has(fixture.fixture?.id)) continue;
-
-      const status = fixture.fixture?.status?.short;
-      if (!status || !finishedStatuses.has(status)) continue;
-
-      const homeScore: number | null = fixture.goals?.home;
-      const awayScore: number | null = fixture.goals?.away;
-      if (homeScore === null || awayScore === null) continue;
-
-      const homeId = resolveTeam(fixture.teams?.home?.name);
-      const awayId = resolveTeam(fixture.teams?.away?.name);
-      if (!homeId || !awayId) continue;
-
-      const round = (fixture.league?.round || "") as string;
-      if (round.startsWith("Group")) continue;
-
-      const key = `${homeId}-${awayId}`;
-      const candidates = state.byTeamPair.get(key) || [];
-      let match: any | undefined;
-      for (const c of candidates) {
-        if (c.stage !== "group") { match = c; break; }
-      }
-      if (!match) continue;
-
-      const scoreChanged = match.home_score !== homeScore || match.away_score !== awayScore || !match.played;
-
-      let winnerTeamId: number | null = null;
-      if (status === "PEN") {
-        const homeWon = fixture.teams?.home?.winner === true;
-        const awayWon = fixture.teams?.away?.winner === true;
-        if (homeWon) winnerTeamId = homeId;
-        else if (awayWon) winnerTeamId = awayId;
-      }
-
-      if (scoreChanged || (winnerTeamId && match.winner_team_id !== winnerTeamId)) {
-        const kickoffAt: string | null = fixture.fixture?.date || null;
-        const apiFixtureId: number | null = fixture.fixture?.id || null;
-        await db.prepare(`
-          UPDATE matches
-          SET home_score = ?, away_score = ?, played = 1,
-              kickoff_at = COALESCE(?, kickoff_at),
-              api_fixture_id = COALESCE(?, api_fixture_id),
-              winner_team_id = COALESCE(?, winner_team_id),
-              updated_at = datetime('now')
-          WHERE id = ?
-        `).bind(homeScore, awayScore, kickoffAt, apiFixtureId, winnerTeamId, match.id).run();
-
-        report.knockout_scores_updated++;
-        if (winnerTeamId && match.winner_team_id !== winnerTeamId) report.penalty_winners_set++;
-      }
-    }
-  }
-
-  // ── Phase 4: auto-advance bracket ──
-  const bracketMatches = await db.prepare(`
-    SELECT id, stage, match_label, home_score, away_score, played,
-           home_team_id, away_team_id, winner_team_id, feeder_1_id, feeder_2_id
-    FROM matches WHERE stage != 'group' ORDER BY id
-  `).all<any>();
-
-  const labelToMatch = new Map<string, any>();
-  for (const m of bracketMatches.results) {
-    if (m.match_label) labelToMatch.set(m.match_label, m);
-  }
-
-  const dag = getBracketDAG();
-  for (const link of dag) {
-    const child = labelToMatch.get(link.childLabel);
-    const p1 = labelToMatch.get(link.parent1Label);
-    const p2 = labelToMatch.get(link.parent2Label);
-    if (!child || !p1 || !p2) continue;
-
-    const p1Done = p1.home_score != null && p1.away_score != null && p1.played === 1;
-    const p2Done = p2.home_score != null && p2.away_score != null && p2.played === 1;
-    if (!p1Done || !p2Done) continue;
-
-    const isThird = child.stage === "third_place";
-
-    function getWinnerAndLoser(m: any): { winner: number | null; loser: number | null } {
-      if (m.home_score > m.away_score) return { winner: m.home_team_id, loser: m.away_team_id };
-      if (m.away_score > m.home_score) return { winner: m.away_team_id, loser: m.home_team_id };
-      if (m.winner_team_id) {
-        const loser = m.winner_team_id === m.home_team_id ? m.away_team_id : m.home_team_id;
-        return { winner: m.winner_team_id, loser };
-      }
-      return { winner: null, loser: null };
+      scoreChanges += await processFixture(fixture, state);
     }
 
-    const r1 = getWinnerAndLoser(p1);
-    const r2 = getWinnerAndLoser(p2);
-    if (r1.winner == null || r2.winner == null) continue;
+    let advances = await tryAdvance();
 
-    const homeId = isThird ? r1.loser : r1.winner;
-    const awayId = isThird ? r2.loser : r2.winner;
+    if (scoreChanges === 0 && advances === 0) break;
 
-    if (homeId !== child.home_team_id || awayId !== child.away_team_id) {
-      await db.prepare(`
-        UPDATE matches SET home_team_id = ?, away_team_id = ?, updated_at = datetime('now') WHERE id = ?
-      `).bind(homeId, awayId, child.id).run();
-
-      if (child.stage === "round_of_16") report.r16_advanced++;
-      else if (child.stage === "quarter_final") report.qf_advanced++;
-      else if (child.stage === "semi_final") report.sf_advanced++;
-      else report.final_advanced++;
-    }
+    state = await loadMatchMap(db);
   }
 
   return Response.json({ synced: true, ...report });
