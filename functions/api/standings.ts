@@ -150,11 +150,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     ORDER BY m.id
   `).all();
 
-  const knockoutMatches = knockoutMatchesRaw.results.map((m: any) => ({
-    ...m,
-    home_label: m.match_label || null,
-    away_label: m.match_label || null
-  }));
+  const knockoutMatches = knockoutMatchesRaw.results;
 
   const flattened = Object.values(groups).flat();
 

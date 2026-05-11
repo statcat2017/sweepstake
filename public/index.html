@@ -315,7 +315,7 @@
 
     if ((standings.knockoutMatches || []).length > 0) {
       const stages = ['round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'];
-      const stageLabels: Record<string, string> = {
+      const stageLabels = {
         round_of_16: 'Round of 16',
         quarter_final: 'Quarter-Final',
         semi_final: 'Semi-Final',
@@ -323,7 +323,7 @@
         final: 'Final'
       };
 
-      const byStage: Record<string, any[]> = {};
+      const byStage = {};
       for (const m of standings.knockoutMatches) {
         const s = m.stage;
         if (!byStage[s]) byStage[s] = [];
@@ -341,9 +341,9 @@
           const homeWon = m.home_score != null && m.away_score != null && m.home_score > m.away_score;
           const awayWon = m.home_score != null && m.away_score != null && m.away_score > m.home_score;
           bracketHtml += `<div class="ko-match">
-            <span class="ko-team${homeWon ? ' winner' : ''}">${m.home_flag || ''} ${m.home_team || m.home_label || 'TBD'}</span>
+            <span class="ko-team${homeWon ? ' winner' : ''}">${m.home_flag || ''} ${m.home_team || m.match_label || 'TBD'}</span>
             <span class="ko-score">${homeScore} – ${awayScore}</span>
-            <span class="ko-team${awayWon ? ' winner' : ''}">${m.away_flag || ''} ${m.away_team || m.away_label || 'TBD'}</span>
+            <span class="ko-team${awayWon ? ' winner' : ''}">${m.away_flag || ''} ${m.away_team || m.match_label || 'TBD'}</span>
           </div>`;
         }
         bracketHtml += `</div>`;
