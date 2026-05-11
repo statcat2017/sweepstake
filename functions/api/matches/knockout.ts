@@ -21,7 +21,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
     const groupStandings = await db.prepare(`
       SELECT t.id, t.group_letter,
-        COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN CASE WHEN m.home_score > m.away_score THEN 3 WHEN m.home_score = m.away_score THEN 1 ELSE 0 END WHEN m.away_team_id = t.id THEN CASE WHEN m.away_score > m.home_score THEN 3 WHEN m.away_score = m.home_score THEN 1 ELSE 0 ELSE 0 END), 0) as pts,
+        COALESCE(SUM(CASE WHEN m.home_team_id = t.id AND m.home_score > m.away_score THEN 3 WHEN m.home_team_id = t.id AND m.home_score = m.away_score THEN 1 WHEN m.away_team_id = t.id AND m.away_score > m.home_score THEN 3 WHEN m.away_team_id = t.id AND m.away_score = m.home_score THEN 1 ELSE 0 END), 0) as pts,
         COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.home_score WHEN m.away_team_id = t.id THEN m.away_score ELSE 0 END), 0) -
         COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.away_score WHEN m.away_team_id = t.id THEN m.home_score ELSE 0 END), 0) as gd,
         COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.home_score WHEN m.away_team_id = t.id THEN m.away_score ELSE 0 END), 0) as gf
