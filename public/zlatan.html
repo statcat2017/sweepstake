@@ -90,7 +90,7 @@
         el.innerHTML += `<div class="participant-card">
           <h3>${p.name}</h3>
           <div>${playerTeams.map(t => `
-            <span class="team-chip ${t.eliminated ? 'eliminated' : ''}">
+            <span class="team-chip ${t.status === 'eliminated' ? 'eliminated' : ''}">
               ${t.flag_emoji} ${t.name} (${t.group_letter})${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
             </span>
           `).join('')}</div>

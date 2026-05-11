@@ -222,6 +222,12 @@ tr.zero-hero {
   padding: 0 6px;
 }
 
+.badge.third { background: #fef3c7; color: var(--amber); }
+
+tr.status-qualified { background: #f0fdf4; }
+tr.status-eliminated { background: #fef2f2; }
+tr.status-third { background: #fefce8; }
+
 .empty-state {
   text-align: center;
   padding: 48px 24px;

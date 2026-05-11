@@ -214,7 +214,7 @@
             </span>
           </div>
           <div>${playerTeams.map(t => `
-            <span class="team-chip ${t.eliminated ? 'eliminated' : ''}">
+            <span class="team-chip ${t.status === 'eliminated' ? 'eliminated' : ''}">
               ${t.flag_emoji} ${t.name} (${t.group_letter})${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
             </span>
           `).join('')}</div>
@@ -242,7 +242,7 @@
             <tbody>
       `;
 
-      rows.forEach((r, i) => {
+      rows.forEach((r) => {
         const gf = r.goals_for ?? 0;
         const ga = r.goals_against ?? 0;
         const pts = r.points ?? 0;
@@ -250,19 +250,63 @@
         const gd = gf - ga;
         const gdStr = gd > 0 ? `+${gd}` : String(gd);
         const zeroHero = pts == 0 && gf == 0 && pld > 0;
-        html += `<tr class="${zeroHero ? 'zero-hero' : ''}"${r.eliminated ? ' style="opacity:0.4;text-decoration:line-through"' : ''}>
-          <td class="pos">${i + 1}</td>
+        const statusClass = r.status === 'qualified' ? 'status-qualified' : (r.status === 'eliminated' ? 'status-eliminated' : (r.status === 'third' ? 'status-third' : ''));
+        const statusBadge = zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : (r.status === 'eliminated' ? '<span class="badge eliminated">OUT</span>' : (r.status === 'third' ? '<span class="badge third">TBD</span>' : '<span class="badge alive">LIVE</span>')));
+        html += `<tr class="${statusClass} ${zeroHero ? 'zero-hero' : ''}">
+          <td class="pos">${r.position ?? '-'}</td>
           <td>${r.flag_emoji} ${r.team_name}</td>
           <td>${pld}</td>
           <td>${gf}</td>
           <td>${ga}</td>
           <td>${gdStr}</td>
           <td class="pts">${pts}</td>
-          <td>${zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (r.eliminated ? '<span class="badge eliminated">OUT</span>' : '<span class="badge alive">LIVE</span>')}</td>
+          <td>${statusBadge}</td>
         </tr>`;
       });
 
       html += `</tbody></table></div>`;
+    }
+
+    if (standings.thirdPlaceRanking && standings.thirdPlaceRanking.length > 0) {
+      html += `<h2 style="margin-top:24px">Third-Placed Ranking</h2>
+        <p style="margin-bottom:12px">Top 8 third-placed teams advance to Round of 32.</p>
+        <table class="standings-table">
+          <thead><tr>
+            <th class="pos">#</th>
+            <th>Team</th>
+            <th>Group</th>
+            <th>Pld</th>
+            <th>GF</th>
+            <th>GA</th>
+            <th>GD</th>
+            <th class="pts">Pts</th>
+            <th></th>
+          </tr></thead>
+          <tbody>`;
+
+      for (const r of standings.thirdPlaceRanking) {
+        const gf = r.goals_for ?? 0;
+        const ga = r.goals_against ?? 0;
+        const pts = r.points ?? 0;
+        const pld = r.played ?? 0;
+        const gd = gf - ga;
+        const gdStr = gd > 0 ? `+${gd}` : String(gd);
+        const isQualified = r.status === 'qualified';
+        const zeroHero = pts == 0 && gf == 0 && pld > 0;
+        html += `<tr class="${isQualified ? 'status-qualified' : 'status-eliminated'} ${zeroHero ? 'zero-hero' : ''}">
+          <td class="pos">${r.third_rank}</td>
+          <td>${r.flag_emoji} ${r.team_name}</td>
+          <td>${r.group_letter}</td>
+          <td>${pld}</td>
+          <td>${gf}</td>
+          <td>${ga}</td>
+          <td>${gdStr}</td>
+          <td class="pts">${pts}</td>
+          <td>${zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (isQualified ? '<span class="badge alive">Q</span>' : '<span class="badge eliminated">OUT</span>')}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>`;
     }
 
     app.innerHTML = html;
