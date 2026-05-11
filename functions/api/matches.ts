@@ -6,7 +6,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   if (context.request.method === "GET") {
     const matches = await db.prepare(`
       SELECT
-        m.id, m.stage, m.group_letter, m.home_score, m.away_score, m.played,
+        m.id, m.stage, m.match_label, m.group_letter, m.home_score, m.away_score, m.played,
         ht.name as home_team, ht.flag_emoji as home_flag,
         at.name as away_team, at.flag_emoji as away_flag,
         ht.id as home_team_id, at.id as away_team_id
