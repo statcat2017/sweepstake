@@ -284,22 +284,63 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
       .filter(m => m.stage === "round_of_32")
       .sort((a, b) => (a.id || 0) - (b.id || 0));
 
-    const usedThirdGroups = new Set<string>();
-
+    // ── B1: assign winners + runners-up only ──
     for (let i = 0; i < r32Slots.length && i < r32MatchesInDb.length; i++) {
       const slot = r32Slots[i];
       const dbMatch = r32MatchesInDb[i];
-
       if (dbMatch.home_team_id || dbMatch.away_team_id) continue;
 
-      const homeTeamId = resolveTeamSource(slot.homeSource as any, qualified, usedThirdGroups);
-      const awayTeamId = resolveTeamSource(slot.awaySource as any, qualified, usedThirdGroups);
+      const homeSrc = slot.homeSource as any;
+      const awaySrc = slot.awaySource as any;
 
-      if (homeTeamId && awayTeamId) {
+      let homeId: number | null = null;
+      let awayId: number | null = null;
+
+      if (homeSrc.type !== "best-third") homeId = resolveTeamSource(homeSrc, qualified);
+      if (awaySrc.type !== "best-third") awayId = resolveTeamSource(awaySrc, qualified);
+
+      if (homeId || awayId) {
         await db.prepare(`
-          UPDATE matches SET home_team_id = ?, away_team_id = ?, updated_at = datetime('now') WHERE id = ?
-        `).bind(homeTeamId, awayTeamId, dbMatch.id).run();
+          UPDATE matches SET home_team_id = COALESCE(?, home_team_id), away_team_id = COALESCE(?, away_team_id),
+          updated_at = datetime('now') WHERE id = ?
+        `).bind(homeId, awayId, dbMatch.id).run();
         report.r32_teams_assigned++;
+      }
+    }
+
+    // ── B2: fill third-place sides from API fixtures ──
+    const r32Partials = await db.prepare(`
+      SELECT id, home_team_id, away_team_id FROM matches
+      WHERE stage = 'round_of_32'
+      ORDER BY id
+    `).all<any>();
+
+    for (const m of r32Partials.results) {
+      if (m.home_team_id && m.away_team_id) continue;
+      const filledSide = m.home_team_id || m.away_team_id;
+      if (!filledSide) continue;
+
+      for (const fixture of fixtures) {
+        const round = (fixture.league?.round || "") as string;
+        if (!round.toLowerCase().includes("round of 32")) continue;
+
+        const fHomeId = resolveTeam(fixture.teams?.home?.name);
+        const fAwayId = resolveTeam(fixture.teams?.away?.name);
+        if (!fHomeId || !fAwayId) continue;
+
+        const otherSide = fHomeId === filledSide ? fAwayId
+                        : fAwayId === filledSide ? fHomeId
+                        : null;
+        if (!otherSide) continue;
+
+        await db.prepare(`
+          UPDATE matches SET home_team_id = COALESCE(?, home_team_id),
+                             away_team_id = COALESCE(?, away_team_id),
+                             updated_at = datetime('now') WHERE id = ?
+        `).bind(!m.home_team_id ? otherSide : null, !m.away_team_id ? otherSide : null, m.id).run();
+
+        report.r32_teams_assigned++;
+        break;
       }
     }
   }
