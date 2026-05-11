@@ -66,7 +66,7 @@ async function handleDraw(db: D1Database): Promise<Response> {
 async function handleReset(db: D1Database): Promise<Response> {
   await db.batch([
     db.prepare("DELETE FROM participant_teams"),
-    db.prepare("DELETE FROM match_results"),
+    db.prepare("DELETE FROM matches"),
     db.prepare("UPDATE sweepstake SET drawn = 0, updated_at = datetime('now') WHERE id = 1")
   ]);
 

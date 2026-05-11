@@ -183,11 +183,16 @@
   }
 
   async function resetDraw() {
-    if (!confirm('Reset the draw? This will remove all team assignments.')) return;
+    if (!confirm('Reset the draw? This will remove all team assignments and match scores.')) return;
 
-    await fetch('/api/draw', { method: 'DELETE' });
-    alert('Draw reset.', 'info');
-    load();
+    const res = await fetch('/api/draw', { method: 'DELETE' });
+    if (res.ok) {
+      alert('Draw reset.', 'info');
+      load();
+    } else {
+      const err = await res.json();
+      alert(err.error, 'error');
+    }
   }
 
   async function seedMatches() {
