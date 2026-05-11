@@ -1,11 +1,15 @@
 import { getDb } from "../db";
+import { requireAuth } from "../auth";
 
-export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
+export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
 
   if (context.request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
+
+  const auth = requireAuth(context.request, context.env);
+  if (auth) return auth;
 
   const teams = await db.prepare("SELECT id, group_letter FROM teams ORDER BY group_letter, id").all<{ id: number; group_letter: string }>();
   const groups = new Map<string, number[]>();

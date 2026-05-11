@@ -1,6 +1,7 @@
 import { getDb, isDrawLocked } from "./db";
+import { requireAuth } from "./auth";
 
-export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
+export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
 
   if (context.request.method === "GET") {
@@ -14,6 +15,9 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   if (context.request.method === "POST") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
+
     const body = await context.request.json() as { name: string };
     const name = body.name?.trim();
 
@@ -34,6 +38,9 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   if (context.request.method === "DELETE") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
+
     if (await isDrawLocked(db)) {
       return Response.json({ error: "Draw is locked. Reset it before removing participants." }, { status: 409 });
     }

@@ -1,10 +1,14 @@
 import { getDb } from "../db";
+import { requireAuth } from "../auth";
 
-export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
+export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
   if (context.request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
+
+  const auth = requireAuth(context.request, context.env);
+  if (auth) return auth;
 
   const all = await db.prepare(`
     SELECT id, stage, match_label, home_score, away_score, played,

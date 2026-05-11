@@ -1,6 +1,7 @@
 import { getDb } from "./db";
+import { requireAuth } from "./auth";
 
-export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
+export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
 
   if (context.request.method === "GET") {
@@ -21,6 +22,9 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   if (context.request.method === "PUT") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
+
     const body = await context.request.json() as {
       id: number;
       home_score: number | null;

@@ -234,15 +234,25 @@
         <div class="group-section">
           <h3>Group ${group}</h3>
           <table class="standings-table">
+            <colgroup>
+              <col style="width:30px">
+              <col style="width:220px">
+              <col style="width:40px">
+              <col style="width:40px">
+              <col style="width:40px">
+              <col style="width:45px">
+              <col style="width:40px">
+              <col style="width:55px">
+            </colgroup>
             <thead><tr>
-              <th class="pos">#</th>
+              <th class="pos col-num">#</th>
               <th>Team</th>
-              <th>Pld</th>
-              <th>GF</th>
-              <th>GA</th>
-              <th>GD</th>
-              <th class="pts">Pts</th>
-              <th></th>
+              <th class="col-num">Pld</th>
+              <th class="col-num">GF</th>
+              <th class="col-num">GA</th>
+              <th class="col-num">GD</th>
+              <th class="col-num col-pts">Pts</th>
+              <th class="col-num"></th>
             </tr></thead>
             <tbody>
       `;
@@ -258,14 +268,14 @@
         const statusClass = r.status === 'qualified' || r.status === 'qualifying' ? 'status-qualified' : (r.status === 'eliminated' || r.status === 'eliminating' ? 'status-eliminated' : 'status-third');
         const statusBadge = zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : (r.status === 'eliminated' ? '<span class="badge eliminated">OUT</span>' : (r.status === 'third' ? '<span class="badge third">TBD</span>' : '<span class="badge alive">LIVE</span>')));
         html += `<tr class="${statusClass} ${zeroHero ? 'zero-hero' : ''}">
-          <td class="pos">${r.position ?? '-'}</td>
+          <td class="pos col-num">${r.position ?? '-'}</td>
           <td>${r.flag_emoji} ${r.team_name}</td>
-          <td>${pld}</td>
-          <td>${gf}</td>
-          <td>${ga}</td>
-          <td>${gdStr}</td>
-          <td class="pts">${pts}</td>
-          <td>${statusBadge}</td>
+          <td class="col-num">${pld}</td>
+          <td class="col-num">${gf}</td>
+          <td class="col-num">${ga}</td>
+          <td class="col-num">${gdStr}</td>
+          <td class="col-num col-pts">${pts}</td>
+          <td class="col-num">${statusBadge}</td>
         </tr>`;
       });
 
@@ -276,16 +286,25 @@
       html += `<h2 style="margin-top:24px">Third-Placed Ranking</h2>
         <p style="margin-bottom:12px">Current 3rd-place teams — top 8 advance to Round of 32.</p>
         <table class="standings-table">
+          <colgroup>
+            <col style="width:30px">
+            <col style="width:220px">
+            <col style="width:40px">
+            <col style="width:40px">
+            <col style="width:40px">
+            <col style="width:45px">
+            <col style="width:40px">
+            <col style="width:55px">
+          </colgroup>
           <thead><tr>
-            <th class="pos">#</th>
+            <th class="pos col-num">#</th>
             <th>Team</th>
-            <th>Group</th>
-            <th>Pld</th>
-            <th>GF</th>
-            <th>GA</th>
-            <th>GD</th>
-            <th class="pts">Pts</th>
-            <th></th>
+            <th class="col-num">Pld</th>
+            <th class="col-num">GF</th>
+            <th class="col-num">GA</th>
+            <th class="col-num">GD</th>
+            <th class="col-num col-pts">Pts</th>
+            <th class="col-num"></th>
           </tr></thead>
           <tbody>`;
 
@@ -301,15 +320,14 @@
         const rowClass = r.third_rank <= 8 ? 'status-qualified' : 'status-eliminated';
         const badge = zeroHero ? '<span class="badge zero-hero-badge">🪫</span>' : (isDefinitive ? (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : '<span class="badge eliminated">OUT</span>') : '<span class="badge third">TBD</span>');
         html += `<tr class="${rowClass} ${zeroHero ? 'zero-hero' : ''}">
-          <td class="pos">${r.third_rank}</td>
-          <td>${r.flag_emoji} ${r.team_name}</td>
-          <td>${r.group_letter}</td>
-          <td>${pld}</td>
-          <td>${gf}</td>
-          <td>${ga}</td>
-          <td>${gdStr}</td>
-          <td class="pts">${pts}</td>
-          <td>${badge}</td>
+          <td class="pos col-num">${r.third_rank}</td>
+          <td>${r.flag_emoji} ${r.team_name} (${r.group_letter})</td>
+          <td class="col-num">${pld}</td>
+          <td class="col-num">${gf}</td>
+          <td class="col-num">${ga}</td>
+          <td class="col-num">${gdStr}</td>
+          <td class="col-num col-pts">${pts}</td>
+          <td class="col-num">${badge}</td>
         </tr>`;
       }
 
@@ -319,43 +337,59 @@
     app.innerHTML = html;
 
     if ((standings.knockoutMatches || []).length > 0) {
-      const stages = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'];
-      const stageLabels = {
-        round_of_32: 'Round of 32',
-        round_of_16: 'Round of 16',
-        quarter_final: 'Quarter-Final',
-        semi_final: 'Semi-Final',
-        third_place: 'Third Place',
-        final: 'Final'
-      };
-
       const byStage = {};
       for (const m of standings.knockoutMatches) {
-        const s = m.stage;
-        if (!byStage[s]) byStage[s] = [];
-        byStage[s].push(m);
+        if (!byStage[m.stage]) byStage[m.stage] = [];
+        byStage[m.stage].push(m);
       }
 
-      let bracketHtml = `<div class="ko-bracket"><h2 style="margin-top:24px">Knockout Stage</h2><div class="ko-layout">`;
-      for (const stage of stages) {
-        const matches = byStage[stage] || [];
-        if (!matches.length) continue;
-        bracketHtml += `<div class="ko-round"><h3>${stageLabels[stage]}</h3>`;
-        for (const m of matches) {
-          const homeScore = m.home_score != null ? m.home_score : '-';
-          const awayScore = m.away_score != null ? m.away_score : '-';
-          const homeWon = m.home_score != null && m.away_score != null && m.home_score > m.away_score;
-          const awayWon = m.home_score != null && m.away_score != null && m.away_score > m.home_score;
-          const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : (m.match_label || 'TBD');
-          const awayLabel = m.away_team ? `${m.away_flag || ''} ${m.away_team}` : (m.match_label || 'TBD');
-          bracketHtml += `<div class="ko-match">
-            <span class="ko-team${homeWon ? ' winner' : ''}">${homeLabel}</span>
-            <span class="ko-score">${homeScore} – ${awayScore}</span>
-            <span class="ko-team${awayWon ? ' winner' : ''}">${awayLabel}</span>
-          </div>`;
-        }
-        bracketHtml += `</div>`;
+      const colLabels = ['Round of 32', 'Round of 16', 'Quarter-Final', 'Semi-Final', 'Final', 'Semi-Final', 'Quarter-Final', 'Round of 16', 'Round of 32'];
+      const positions = [];
+
+      const r32 = byStage.round_of_32 || [];
+      r32.slice(0, 8).forEach((m, i) => positions.push({ m, col: 1, row: i * 2 + 2, span: 2 }));
+      r32.slice(8).forEach((m, i) => positions.push({ m, col: 9, row: i * 2 + 2, span: 2 }));
+
+      const r16 = byStage.round_of_16 || [];
+      r16.slice(0, 4).forEach((m, i) => positions.push({ m, col: 2, row: i * 4 + 2, span: 4 }));
+      r16.slice(4).forEach((m, i) => positions.push({ m, col: 8, row: i * 4 + 2, span: 4 }));
+
+      const qf = byStage.quarter_final || [];
+      qf.slice(0, 2).forEach((m, i) => positions.push({ m, col: 3, row: i * 8 + 2, span: 8 }));
+      qf.slice(2).forEach((m, i) => positions.push({ m, col: 7, row: i * 8 + 2, span: 8 }));
+
+      const sf = byStage.semi_final || [];
+      sf.slice(0, 1).forEach((m) => positions.push({ m, col: 4, row: 2, span: 16 }));
+      sf.slice(1).forEach((m) => positions.push({ m, col: 6, row: 2, span: 16 }));
+
+      const finals = byStage.final || [];
+      finals.forEach((m) => positions.push({ m, col: 5, row: 2, span: 10 }));
+
+      const third = byStage.third_place || [];
+      third.forEach((m) => positions.push({ m, col: 5, row: 13, span: 5 }));
+
+      let bracketHtml = `<div class="ko-bracket"><h2 style="margin-top:24px">Knockout Stage</h2><div class="ko-bracket-grid">`;
+
+      for (let c = 0; c < 9; c++) {
+        bracketHtml += `<div class="ko-round-label">${colLabels[c]}</div>`;
       }
+
+      for (const p of positions) {
+        const m = p.m;
+        const homeScore = m.home_score != null ? m.home_score : '-';
+        const awayScore = m.away_score != null ? m.away_score : '-';
+        const homeWon = m.home_score != null && m.away_score != null && m.home_score > m.away_score;
+        const awayWon = m.home_score != null && m.away_score != null && m.away_score > m.home_score;
+        const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : (m.match_label || 'TBD');
+        const awayLabel = m.away_team ? `${m.away_flag || ''} ${m.away_team}` : (m.match_label || 'TBD');
+
+        bracketHtml += `<div class="ko-match" style="grid-column:${p.col};grid-row:${p.row}/span ${p.span}">
+          <span class="ko-team${homeWon ? ' winner' : ''}">${homeLabel}</span>
+          <span class="ko-score">${homeScore} – ${awayScore}</span>
+          <span class="ko-team${awayWon ? ' winner' : ''}">${awayLabel}</span>
+        </div>`;
+      }
+
       bracketHtml += `</div></div>`;
       app.innerHTML += bracketHtml;
     }

@@ -1,6 +1,7 @@
 import { getDb, isDrawLocked } from "./db";
+import { requireAuth } from "./auth";
 
-export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
+export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
 
   if (context.request.method === "POST") {
@@ -8,6 +9,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   if (context.request.method === "DELETE") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
     return handleReset(db);
   }
 

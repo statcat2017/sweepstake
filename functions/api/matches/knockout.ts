@@ -1,4 +1,5 @@
 import { getDb } from "../db";
+import { requireAuth } from "../auth";
 
 function sortByPointsGDGoals(a: any, b: any) {
   const ptsA = a.pts ?? 0;
@@ -10,10 +11,12 @@ function sortByPointsGDGoals(a: any, b: any) {
   return (b.gf ?? 0) - (a.gf ?? 0);
 }
 
-export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
+export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
 
   if (context.request.method === "POST") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
     return seedKnockout(db);
   }
 
@@ -22,6 +25,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   if (context.request.method === "PUT") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
     return updateKnockoutMatch(db, await context.request.json());
   }
 

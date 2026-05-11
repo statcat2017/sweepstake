@@ -5,8 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sweepstake Admin</title>
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    #auth-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); display: flex;
+      align-items: center; justify-content: center; z-index: 1000;
+    }
+    .auth-box {
+      background: white; border-radius: 12px; padding: 32px;
+      max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .auth-box h2 { font-size: 20px; margin-bottom: 4px; }
+    .auth-box p { color: #6b7280; margin-bottom: 20px; }
+  </style>
 </head>
 <body>
+  <div id="auth-overlay">
+    <div class="auth-box">
+      <h2>Admin Access</h2>
+      <p>Enter password to manage the sweepstake.</p>
+      <div class="form-row">
+        <input type="password" id="auth-password" placeholder="Password" onkeydown="if(event.key==='Enter') authenticate()">
+        <button class="btn primary" onclick="authenticate()">Enter</button>
+      </div>
+      <div id="auth-error" style="color:var(--red);margin-top:8px;font-size:13px"></div>
+    </div>
+  </div>
+
+  <div id="admin-content" style="display:none">
   <nav class="top-nav">
     <span class="brand">🏆 Sweepstake 2026</span>
     <a href="/">Standings</a>
@@ -54,11 +80,42 @@
       <div id="bracket-editor"></div>
     </div>
   </div>
+  </div>
 
   <script>
+  let PASSWORD = sessionStorage.getItem('sweepstake_auth') || '';
   let drawLocked = false;
   let knockouts = [];
   let eligibleTeams = [];
+
+  function authenticate() {
+    const input = document.getElementById('auth-password');
+    const pw = input.value.trim();
+    if (!pw) return;
+    PASSWORD = pw;
+    sessionStorage.setItem('sweepstake_auth', pw);
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('admin-content').style.display = '';
+    load();
+  }
+
+  async function apiFetch(url, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (PASSWORD) {
+      headers['Authorization'] = 'Bearer ' + PASSWORD;
+    }
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      PASSWORD = '';
+      sessionStorage.removeItem('sweepstake_auth');
+      document.getElementById('admin-content').style.display = 'none';
+      document.getElementById('auth-overlay').style.display = 'flex';
+      document.getElementById('auth-error').textContent = 'Invalid password. Please try again.';
+      document.getElementById('auth-password').focus();
+      throw new Error('Unauthorized');
+    }
+    return res;
+  }
 
   function alert(msg, type) {
     document.getElementById('alert-area').innerHTML = `<div class="alert ${type}">${msg}</div>`;
@@ -67,10 +124,10 @@
 
   async function load() {
     const [partRes, matchRes, stateRes, knockRes] = await Promise.all([
-      fetch('/api/participants'),
-      fetch('/api/matches'),
-      fetch('/api/standings'),
-      fetch('/api/matches/knockout')
+      apiFetch('/api/participants'),
+      apiFetch('/api/matches'),
+      apiFetch('/api/standings'),
+      apiFetch('/api/matches/knockout')
     ]);
     const participants = await partRes.json();
     const matches = await matchRes.json();
@@ -148,6 +205,7 @@
           `;
         }
         matchList.innerHTML += html;
+      }
       }
     } else {
       matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
@@ -234,7 +292,7 @@
   }
 
   async function seedKnockout() {
-    const res = await fetch('/api/matches/knockout', { method: 'POST' });
+    const res = await apiFetch('/api/matches/knockout', { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       alert(`Knockout bracket seeded! (${data.seeded} matches)`, 'success');
@@ -267,7 +325,7 @@
 
       if (Object.keys(body).length <= 1) continue;
 
-      await fetch('/api/matches/knockout', {
+      await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -283,7 +341,7 @@
       if (!homeScore && !awayScore) continue;
       if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
 
-      await fetch('/api/matches/knockout', {
+      await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -302,7 +360,7 @@
   }
 
   async function advanceWinners() {
-    const res = await fetch('/api/matches/advance', { method: 'POST' });
+    const res = await apiFetch('/api/matches/advance', { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       alert(`Advanced ${data.advanced} matches!`, 'success');
@@ -317,7 +375,7 @@
     const name = input.value.trim();
     if (!name) return;
 
-    const res = await fetch('/api/participants', {
+    const res = await apiFetch('/api/participants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
@@ -334,7 +392,7 @@
   }
 
   async function removeParticipant(id) {
-    await fetch('/api/participants', {
+    await apiFetch('/api/participants', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
@@ -346,7 +404,7 @@
     document.getElementById('draw-btn').disabled = true;
     document.getElementById('draw-btn').textContent = 'Drawing...';
 
-    const res = await fetch('/api/draw', { method: 'POST' });
+    const res = await apiFetch('/api/draw', { method: 'POST' });
 
     if (res.ok) {
       alert('Draw complete! Teams assigned.', 'success');
@@ -362,7 +420,7 @@
   async function resetDraw() {
     if (!confirm('Reset the draw? This will remove all team assignments and match scores.')) return;
 
-    const res = await fetch('/api/draw', { method: 'DELETE' });
+    const res = await apiFetch('/api/draw', { method: 'DELETE' });
     if (res.ok) {
       alert('Draw reset.', 'info');
       load();
@@ -373,7 +431,7 @@
   }
 
   async function seedMatches() {
-    const res = await fetch('/api/matches/seed', { method: 'POST' });
+    const res = await apiFetch('/api/matches/seed', { method: 'POST' });
     if (res.ok) {
       alert('Group matches seeded!', 'success');
       load();
@@ -388,7 +446,7 @@
 
     if (homeScore === '' && awayScore === '') return;
 
-    const res = await fetch('/api/matches', {
+    const res = await apiFetch('/api/matches', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -404,7 +462,13 @@
     }
   }
 
-  load();
+  if (PASSWORD) {
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('admin-content').style.display = '';
+    load();
+  } else {
+    document.getElementById('auth-password').focus();
+  }
   </script>
 </body>
 </html>
