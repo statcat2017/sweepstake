@@ -105,6 +105,7 @@ p { color: var(--gray-500); margin-bottom: 16px; }
 
 .badge.alive { background: #dcfce7; color: var(--green); }
 .badge.eliminated { background: #fee2e2; color: var(--red); }
+.badge.bonus { background: #fef3c7; color: var(--amber); }
 
 table {
   width: 100%;

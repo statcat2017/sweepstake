@@ -31,29 +31,35 @@ async function handleDraw(db: D1Database): Promise<Response> {
     return Response.json({ error: "Not enough teams for all participants." }, { status: 400 });
   }
 
-  const assignments: Array<{ participant_id: number; team_id: number }> = [];
+  const assignments: Array<{ participant_id: number; team_id: number; bonus: number }> = [];
   const teamsPerParticipant = Math.floor(teams.results.length / participants.results.length);
   let teamIndex = 0;
 
   for (const participant of participants.results) {
     for (let t = 0; t < teamsPerParticipant; t++) {
       if (teamIndex < teams.results.length) {
-        assignments.push({ participant_id: participant.id, team_id: teams.results[teamIndex].id });
+        assignments.push({ participant_id: participant.id, team_id: teams.results[teamIndex].id, bonus: 0 });
         teamIndex++;
       }
     }
   }
 
-  const insertStmt = db.prepare("INSERT OR IGNORE INTO participant_teams (participant_id, team_id) VALUES (?, ?)");
+  while (teamIndex < teams.results.length) {
+    const luckyIndex = Math.floor(Math.random() * participants.results.length);
+    assignments.push({ participant_id: participants.results[luckyIndex].id, team_id: teams.results[teamIndex].id, bonus: 1 });
+    teamIndex++;
+  }
+
+  const insertStmt = db.prepare("INSERT OR IGNORE INTO participant_teams (participant_id, team_id, bonus) VALUES (?, ?, ?)");
   const updateStmt = db.prepare("UPDATE sweepstake SET drawn = 1, updated_at = datetime('now') WHERE id = 1");
 
   await db.batch([
-    ...assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id)),
+    ...assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id, a.bonus)),
     updateStmt
   ]);
 
   const result = await db.prepare(`
-    SELECT p.name as participant, t.name as team, t.group_letter, t.flag_emoji
+    SELECT p.name as participant, t.name as team, t.group_letter, t.flag_emoji, pt.bonus
     FROM participant_teams pt
     JOIN participants p ON p.id = pt.participant_id
     JOIN teams t ON t.id = pt.team_id

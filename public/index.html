@@ -132,7 +132,8 @@
       setTimeout(() => {
         const card = document.querySelector(`.participant-card[data-participant="${CSS.escape(a.participant)}"]`);
         if (card) {
-          card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}</span>`;
+          const bonusTag = a.bonus ? ' <span class="badge bonus">BONUS</span>' : '';
+          card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}${bonusTag}</span>`;
           card.classList.add('revealed');
         }
 
@@ -141,7 +142,8 @@
           chip.classList.add('assigned');
         });
 
-        status.innerHTML = `${a.flag_emoji} ${a.team} → <strong>${a.participant}</strong>`;
+        const bonusLabel = a.bonus ? ' 🎁 BONUS!' : '';
+        status.innerHTML = `${a.flag_emoji} ${a.team} → <strong>${a.participant}</strong>${bonusLabel}`;
         index++;
         setTimeout(next, 3000);
       }, 2000);
@@ -197,7 +199,7 @@
     `;
 
     for (const p of standings.participants) {
-      const playerTeams = standings.teams.filter(t => t.participant_ids?.split(',').includes(String(p.id)));
+      const playerTeams = standings.teams.filter(t => t.participant_id == p.id);
       html += `
         <div class="participant-card">
           <h3>${p.name}</h3>
@@ -208,7 +210,7 @@
           </div>
           <div>${playerTeams.map(t => `
             <span class="team-chip ${t.eliminated ? 'eliminated' : ''}">
-              ${t.flag_emoji} ${t.name} (${t.group_letter})
+              ${t.flag_emoji} ${t.name} (${t.group_letter})${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
             </span>
           `).join('')}</div>
         </div>

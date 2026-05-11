@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS participant_teams (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   participant_id INTEGER NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
   team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  bonus INTEGER NOT NULL DEFAULT 0,
   UNIQUE(team_id),
   UNIQUE(participant_id, team_id)
 );

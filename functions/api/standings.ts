@@ -22,10 +22,9 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   const teams = await db.prepare(`
     SELECT
       t.id, t.name, t.group_letter, t.flag_emoji, t.eliminated,
-      GROUP_CONCAT(pt.participant_id) as participant_ids
+      pt.participant_id, pt.bonus
     FROM teams t
     LEFT JOIN participant_teams pt ON pt.team_id = t.id
-    GROUP BY t.id
     ORDER BY t.group_letter, t.name
   `).all();
 

@@ -86,12 +86,12 @@
       const el = document.getElementById('draw-result');
       el.innerHTML = '<h4 style="margin-bottom:8px">Current Draw</h4><div class="grid">';
       for (const p of standings.participants) {
-        const playerTeams = standings.teams.filter(t => t.participant_ids?.split(',').includes(String(p.id)));
+        const playerTeams = standings.teams.filter(t => t.participant_id == p.id);
         el.innerHTML += `<div class="participant-card">
           <h3>${p.name}</h3>
           <div>${playerTeams.map(t => `
             <span class="team-chip ${t.eliminated ? 'eliminated' : ''}">
-              ${t.flag_emoji} ${t.name} (${t.group_letter})
+              ${t.flag_emoji} ${t.name} (${t.group_letter})${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
             </span>
           `).join('')}</div>
         </div>`;
