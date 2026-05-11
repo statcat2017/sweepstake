@@ -110,17 +110,18 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       teamStatus[team.team_id] = team.status;
     });
 
-    if (groupComplete) {
-      thirdPlaced.push(teams[2]);
-    }
+    thirdPlaced.push(teams[2]);
   }
 
   thirdPlaced.sort(sortByPointsGDGoals);
   thirdPlaced.forEach((team: any, idx: number) => {
     team.third_rank = idx + 1;
-    const finalStatus = idx < 8 ? "qualified" : "eliminated";
-    team.status = finalStatus;
-    teamStatus[team.team_id] = finalStatus;
+    const groupComplete = (groups[team.group_letter] || []).every((t: any) => t.played >= 3);
+    if (groupComplete) {
+      const finalStatus = idx < 8 ? "qualified" : "eliminated";
+      team.status = finalStatus;
+      teamStatus[team.team_id] = finalStatus;
+    }
   });
 
   const participants = participantsRaw.results.map((p: any) => {
