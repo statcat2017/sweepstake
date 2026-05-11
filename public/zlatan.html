@@ -120,9 +120,9 @@
                 <span>${m.away_flag || ''} ${m.away_team}</span>
               </div>
               <div class="score">
-                <input type="number" min="0" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:40px">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
                 <span>-</span>
-                <input type="number" min="0" id="as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:40px">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
                 <button class="btn primary" onclick="saveScore(${m.id})" style="padding:4px 10px;font-size:12px">Save</button>
               </div>
             </div>
