@@ -90,12 +90,22 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       team.position = pos;
       teamPosition[team.team_id] = pos;
 
-      if (idx < 2) {
-        team.status = groupComplete ? "qualified" : "contending";
-      } else if (idx === 2) {
-        team.status = groupComplete ? "third" : "contending";
+      if (groupComplete) {
+        if (idx < 2) {
+          team.status = "qualified";
+        } else if (idx === 2) {
+          team.status = "third";
+        } else {
+          team.status = "eliminated";
+        }
       } else {
-        team.status = groupComplete ? "eliminated" : "contending";
+        if (idx < 2) {
+          team.status = "qualifying";
+        } else if (idx === 2) {
+          team.status = "contending";
+        } else {
+          team.status = "eliminating";
+        }
       }
       teamStatus[team.team_id] = team.status;
     });
@@ -117,7 +127,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     const playerTeams = teamsData.results.filter((t: any) => t.participant_id == p.id);
     const alive = playerTeams.filter((t: any) => {
       const s = teamStatus[t.id];
-      return s === "qualified" || s === "contending" || s === "third";
+      return !s || s === "qualified" || s === "qualifying" || s === "contending" || s === "third" || s === "eliminating";
     }).length;
     return { id: p.id, name: p.name, team_count: playerTeams.length, alive_count: alive };
   });
