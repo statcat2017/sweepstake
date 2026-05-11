@@ -12,7 +12,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
   const all = await db.prepare(`
     SELECT id, stage, match_label, home_score, away_score, played,
-           home_team_id, away_team_id, feeder_1_id, feeder_2_id
+           home_team_id, away_team_id, winner_team_id, feeder_1_id, feeder_2_id
     FROM matches WHERE stage != 'group' ORDER BY id
   `).all();
 
@@ -37,16 +37,24 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     let homeId: number | null = null;
     let awayId: number | null = null;
 
+    function winnerLoser(f: any): { winner: number | null; loser: number | null } {
+      if (f.home_score > f.away_score) return { winner: f.home_team_id, loser: f.away_team_id };
+      if (f.away_score > f.home_score) return { winner: f.away_team_id, loser: f.home_team_id };
+      if (f.winner_team_id) {
+        const loser = f.winner_team_id === f.home_team_id ? f.away_team_id : f.home_team_id;
+        return { winner: f.winner_team_id, loser };
+      }
+      return { winner: null, loser: null };
+    }
+
     if (f1HasResult) {
-      const f1Winner = f1Home > f1Away ? f1.home_team_id : (f1Away > f1Home ? f1.away_team_id : null);
-      const f1Loser = f1Home > f1Away ? f1.away_team_id : (f1Away > f1Home ? f1.home_team_id : null);
-      homeId = m.stage === 'third_place' ? f1Loser : f1Winner;
+      const r1 = winnerLoser(f1);
+      homeId = m.stage === 'third_place' ? r1.loser : r1.winner;
     }
 
     if (f2HasResult) {
-      const f2Winner = f2Home > f2Away ? f2.home_team_id : (f2Away > f2Home ? f2.away_team_id : null);
-      const f2Loser = f2Home > f2Away ? f2.away_team_id : (f2Away > f2Home ? f2.home_team_id : null);
-      awayId = m.stage === 'third_place' ? f2Loser : f2Winner;
+      const r2 = winnerLoser(f2);
+      awayId = m.stage === 'third_place' ? r2.loser : r2.winner;
     }
 
     if (homeId === m.home_team_id && awayId === m.away_team_id) continue;
