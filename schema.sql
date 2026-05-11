@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS matches (
   feeder_2_id INTEGER REFERENCES matches(id),
   knockout_bracket_slot INTEGER,
   kickoff_at TEXT,
+  api_fixture_id INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
