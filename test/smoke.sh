@@ -126,6 +126,21 @@ print(f'drawn={d[\"drawn\"]}, participants={parts}, teams_assigned={teams}')
 " 2>/dev/null)
 echo "  $DRAW_INFO"
 
+# Verify bonus pool sizing (48 % 3 = 0 bonus teams with 3 participants)
+BONUS_COUNT=$(curl -sf "$BASE/api/standings" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+bonus = sum(t.get('bonus', 0) for t in d.get('teams', []))
+print(bonus)
+" 2>/dev/null)
+if [ "$BONUS_COUNT" = "0" ]; then
+  echo "  PASS bonus teams: $BONUS_COUNT (expected 0 for 3 participants)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL bonus teams: $BONUS_COUNT (expected 0 for 3 participants)"
+  FAIL=$((FAIL + 1))
+fi
+
 # Second draw should be rejected
 check "Draw locked" 409 -X POST "$BASE/api/draw"
 

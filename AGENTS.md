@@ -25,7 +25,7 @@ Smoke test expects dev server running at `http://localhost:8787`. Default passwo
 
 ## Env
 
-`.dev.vars` must contain (already committed):
+`.dev.vars` must exist locally and contain:
 - `ADMIN_PASSWORD` — Bearer token for mutating endpoints
 - `FOOTBALL_API_KEY` — key for api-sports.io (sync endpoint)
 
@@ -44,7 +44,7 @@ Smoke test expects dev server running at `http://localhost:8787`. Default passwo
 | GET | `/participants` | No | List participants + draw status |
 | POST | `/participants` | Yes | Add participant |
 | DELETE | `/participants` | Yes | Remove participant |
-| POST | `/draw` | Yes | Randomly assign teams to participants |
+| POST | `/draw` | No | Randomly assign teams to participants |
 | DELETE | `/draw` | Yes | Reset draw, clear matches |
 | GET | `/matches` | No | All matches |
 | PUT | `/matches` | Yes | Set group match score |

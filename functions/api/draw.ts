@@ -28,6 +28,11 @@ async function handleDraw(db: D1Database): Promise<Response> {
     return Response.json({ error: "No participants added yet." }, { status: 400 });
   }
 
+  const missingRanks = await db.prepare("SELECT COUNT(*) AS count FROM teams WHERE fifa_rank IS NULL").first<{ count: number }>();
+  if ((missingRanks?.count ?? 0) > 0) {
+    return Response.json({ error: "Cannot run ranked draw: some teams are missing fifa_rank." }, { status: 500 });
+  }
+
   const teams = await db.prepare("SELECT id FROM teams ORDER BY fifa_rank ASC").all<{ id: number }>();
 
   if (teams.results.length < participants.results.length) {
