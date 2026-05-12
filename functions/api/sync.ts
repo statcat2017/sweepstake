@@ -284,42 +284,25 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
       .filter(m => m.stage === "round_of_32")
       .sort((a, b) => (a.id || 0) - (b.id || 0));
 
-    // ── B1: assign winners + runners-up only ──
+    // ── B: match all 16 R32 slots to API fixtures by team identity ──
+    // Standings provide lookup keys (winner/runner-up IDs); API fixtures
+    // supply the actual team assignment for every slot.
     for (let i = 0; i < r32Slots.length && i < r32MatchesInDb.length; i++) {
       const slot = r32Slots[i];
       const dbMatch = r32MatchesInDb[i];
-      if (dbMatch.home_team_id || dbMatch.away_team_id) continue;
+      if (dbMatch.home_team_id && dbMatch.away_team_id) continue;
 
-      const homeSrc = slot.homeSource as any;
-      const awaySrc = slot.awaySource as any;
-
-      let homeId: number | null = null;
-      let awayId: number | null = null;
-
-      if (homeSrc.type !== "best-third") homeId = resolveTeamSource(homeSrc, qualified);
-      if (awaySrc.type !== "best-third") awayId = resolveTeamSource(awaySrc, qualified);
-
-      if (homeId || awayId) {
-        await db.prepare(`
-          UPDATE matches SET home_team_id = COALESCE(?, home_team_id), away_team_id = COALESCE(?, away_team_id),
-          updated_at = datetime('now') WHERE id = ?
-        `).bind(homeId, awayId, dbMatch.id).run();
-        report.r32_teams_assigned++;
+      // Build lookup keys from standings (winners + runners-up only)
+      const expectedIds: (number | null)[] = [];
+      for (const src of [slot.homeSource, slot.awaySource] as any[]) {
+        if (src.type !== "best-third") {
+          expectedIds.push(resolveTeamSource(src, qualified));
+        } else {
+          expectedIds.push(null);
+        }
       }
-    }
 
-    // ── B2: fill third-place sides from API fixtures ──
-    const r32Partials = await db.prepare(`
-      SELECT id, home_team_id, away_team_id FROM matches
-      WHERE stage = 'round_of_32'
-      ORDER BY id
-    `).all<any>();
-
-    for (const m of r32Partials.results) {
-      if (m.home_team_id && m.away_team_id) continue;
-      const filledSide = m.home_team_id || m.away_team_id;
-      if (!filledSide) continue;
-
+      // Find the API fixture that contains at least one expected team
       for (const fixture of fixtures) {
         const round = (fixture.league?.round || "") as string;
         if (!round.toLowerCase().includes("round of 32")) continue;
@@ -328,16 +311,12 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
         const fAwayId = resolveTeam(fixture.teams?.away?.name);
         if (!fHomeId || !fAwayId) continue;
 
-        const otherSide = fHomeId === filledSide ? fAwayId
-                        : fAwayId === filledSide ? fHomeId
-                        : null;
-        if (!otherSide) continue;
+        if (!expectedIds.includes(fHomeId) && !expectedIds.includes(fAwayId)) continue;
 
         await db.prepare(`
-          UPDATE matches SET home_team_id = COALESCE(?, home_team_id),
-                             away_team_id = COALESCE(?, away_team_id),
-                             updated_at = datetime('now') WHERE id = ?
-        `).bind(!m.home_team_id ? otherSide : null, !m.away_team_id ? otherSide : null, m.id).run();
+          UPDATE matches SET home_team_id = ?, away_team_id = ?,
+          updated_at = datetime('now') WHERE id = ?
+        `).bind(fHomeId, fAwayId, dbMatch.id).run();
 
         report.r32_teams_assigned++;
         break;
