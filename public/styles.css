@@ -190,6 +190,53 @@ input, select {
 .group-section { margin-bottom: 24px; }
 .group-section h3 { margin-bottom: 8px; font-size: 15px; }
 
+.group-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.group-layout .standings-table {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-fixtures {
+  flex: 1;
+  min-width: 260px;
+  font-size: 13px;
+}
+
+.fixture-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.fixture-time {
+  min-width: 72px;
+  font-size: 11px;
+  color: var(--gray-400);
+  white-space: nowrap;
+}
+
+.fixture-home {
+  flex: 1;
+  text-align: right;
+}
+
+.fixture-away {
+  flex: 1;
+}
+
+.fixture-score {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+}
+
 .summary-strip {
   display: flex;
   gap: 24px;

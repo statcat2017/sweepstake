@@ -172,6 +172,21 @@
       grouped[row.group_letter].push(row);
     }
 
+    const fixturesByGroup = {};
+    for (const f of (standings.groupFixtures || [])) {
+      if (!fixturesByGroup[f.group_letter]) fixturesByGroup[f.group_letter] = [];
+      fixturesByGroup[f.group_letter].push(f);
+    }
+
+    function formatUTC(iso) {
+      if (!iso) return 'TBD';
+      const d = new Date(iso);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const h = String(d.getUTCHours()).padStart(2, '0');
+      const m = String(d.getUTCMinutes()).padStart(2, '0');
+      return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${h}:${m} UTC`;
+    }
+
     let html = `
       <div class="card">
         <h1>World Cup 2026 Sweepstake</h1>
@@ -233,6 +248,7 @@
       html += `
         <div class="group-section">
           <h3>Group ${group}</h3>
+          <div class="group-layout">
           <table class="standings-table">
             <colgroup>
               <col style="width:30px">
@@ -279,7 +295,25 @@
         </tr>`;
       });
 
-      html += `</tbody></table></div>`;
+      html += `</tbody></table>`;
+
+      // Fixtures panel
+      const groupFixtures = fixturesByGroup[group] || [];
+      if (groupFixtures.length > 0) {
+        html += `<div class="group-fixtures">`;
+        for (const f of groupFixtures) {
+          const score = f.played ? `${f.home_score ?? 0}–${f.away_score ?? 0}` : 'vs';
+          html += `<div class="fixture-row">
+            <span class="fixture-time">${formatUTC(f.kickoff_at)}</span>
+            <span class="fixture-home">${f.home_flag || ''} ${f.home_team || '?'}</span>
+            <span class="fixture-score">${score}</span>
+            <span class="fixture-away">${f.away_flag || ''} ${f.away_team || '?'}</span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+
+      html += `</div></div>`;
     }
 
     if (standings.thirdPlaceRanking && standings.thirdPlaceRanking.length > 0) {

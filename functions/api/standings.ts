@@ -14,7 +14,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   const db = getDb(context.env);
 
   if (!(await isDrawLocked(db))) {
-    return Response.json({ drawn: false, standings: [], participants: [] });
+    return Response.json({ drawn: false, standings: [], participants: [], groupFixtures: [] });
   }
 
   const participantsRaw = await db.prepare(`
@@ -138,6 +138,18 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     status: teamStatus[t.id] || null
   }));
 
+  const groupFixturesRaw = await db.prepare(`
+    SELECT
+      m.id, m.group_letter, m.home_score, m.away_score, m.played, m.kickoff_at,
+      ht.name as home_team, ht.flag_emoji as home_flag,
+      at.name as away_team, at.flag_emoji as away_flag
+    FROM matches m
+    JOIN teams ht ON ht.id = m.home_team_id
+    JOIN teams at ON at.id = m.away_team_id
+    WHERE m.stage = 'group'
+    ORDER BY m.group_letter, COALESCE(m.kickoff_at, m.id)
+  `).all();
+
   const knockoutMatchesRaw = await db.prepare(`
     SELECT
       m.id, m.stage, m.match_label, m.home_score, m.away_score, m.played,
@@ -163,6 +175,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     drawn: true,
     participants,
     teams,
+    groupFixtures: groupFixturesRaw.results,
     groupStandings: flattened,
     thirdPlaceRanking: thirdPlaced,
     knockoutMatches,
