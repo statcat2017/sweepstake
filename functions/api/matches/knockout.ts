@@ -1,15 +1,7 @@
 import { getDb } from "../db";
 import { requireAuth } from "../auth";
-
-function sortByPointsGDGoals(a: any, b: any) {
-  const ptsA = a.pts ?? 0;
-  const ptsB = b.pts ?? 0;
-  if (ptsB !== ptsA) return ptsB - ptsA;
-  const gdA = (a.gf ?? 0) - (a.ga ?? 0);
-  const gdB = (b.gf ?? 0) - (b.ga ?? 0);
-  if (gdB !== gdA) return gdB - gdA;
-  return (b.gf ?? 0) - (a.gf ?? 0);
-}
+import { generateBracketSeeds } from "../sync/bracket-paths";
+import { sortByPointsGDGoals } from "../sync/standings-helper";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
@@ -34,66 +26,45 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 }
 
 async function seedKnockout(db: D1Database) {
-  // Clear existing knockout matches
   await db.prepare("DELETE FROM matches WHERE stage != 'group'").run();
 
-  // Build bracket: R32 (16) -> R16 (8) -> QF (4) -> SF (2) -> Final + 3rd
-  // First pass: insert R32 matches, get their IDs
-  const r32Inserts = [];
-  for (let i = 1; i <= 16; i++) {
-    r32Inserts.push(db.prepare(
-      "INSERT INTO matches (stage, match_label) VALUES ('round_of_32', ?)"
-    ).bind(`R32-${String(i).padStart(2, '0')}`));
-  }
+  const seeds = generateBracketSeeds();
+  const labelToId = new Map<string, number>();
 
-  const r32Results = await db.batch(r32Inserts);
-  const r32Ids = r32Results.map(r => Number(r.meta.last_row_id));
-  const m = r32Ids;
+  const insertStage = (start: number, count: number) =>
+    db.batch(seeds.slice(start, start + count).map(s =>
+      db.prepare("INSERT INTO matches (stage, match_label) VALUES (?, ?)")
+        .bind(s.stage, s.matchLabel)
+    ));
 
-  // R16: each feeds from two consecutive R32 matches
-  const r16Pairs = [
-    [m[0], m[1]], [m[2], m[3]], [m[4], m[5]], [m[6], m[7]],
-    [m[8], m[9]], [m[10], m[11]], [m[12], m[13]], [m[14], m[15]]
-  ];
+  const insertWithFeeders = (start: number, count: number) =>
+    db.batch(seeds.slice(start, start + count).map(s => {
+      const f1Id = labelToId.get(s.feeder1Label!) ?? null;
+      const f2Id = labelToId.get(s.feeder2Label!) ?? null;
+      return db.prepare(
+        "INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES (?, ?, ?, ?)"
+      ).bind(s.stage, s.matchLabel, f1Id, f2Id);
+    }));
 
-  const r16Inserts = r16Pairs.map(([f1, f2], i) =>
-    db.prepare(
-      "INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES ('round_of_16', ?, ?, ?)"
-    ).bind(`R16-${String(i + 1).padStart(2, '0')}`, f1, f2)
-  );
+  const storeIds = (results: any[], start: number, count: number) => {
+    const ids = results.map((r: any) => Number(r.meta.last_row_id));
+    for (let i = 0; i < count; i++) labelToId.set(seeds[start + i].matchLabel, ids[i]);
+    return ids;
+  };
 
-  const r16Results = await db.batch(r16Inserts);
-  const r16Ids = r16Results.map(r => Number(r.meta.last_row_id));
+  let results = await insertStage(0, 16);
+  storeIds(results, 0, 16);
 
-  // QF: each feeds from two consecutive R16 matches
-  const qfPairs = [
-    [r16Ids[0], r16Ids[1]], [r16Ids[2], r16Ids[3]],
-    [r16Ids[4], r16Ids[5]], [r16Ids[6], r16Ids[7]]
-  ];
+  results = await insertWithFeeders(16, 8);
+  storeIds(results, 16, 8);
 
-  const qfInserts = qfPairs.map(([f1, f2], i) =>
-    db.prepare(
-      "INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES ('quarter_final', ?, ?, ?)"
-    ).bind(`QF-${i + 1}`, f1, f2)
-  );
+  results = await insertWithFeeders(24, 4);
+  storeIds(results, 24, 4);
 
-  const qfResults = await db.batch(qfInserts);
-  const qfIds = qfResults.map(r => Number(r.meta.last_row_id));
+  results = await insertWithFeeders(28, 2);
+  storeIds(results, 28, 2);
 
-  // SF: each feeds from two consecutive QF matches
-  const sfInserts = [
-    db.prepare("INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES ('semi_final', 'SF-1', ?, ?)").bind(qfIds[0], qfIds[1]),
-    db.prepare("INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES ('semi_final', 'SF-2', ?, ?)").bind(qfIds[2], qfIds[3])
-  ];
-
-  const sfResults = await db.batch(sfInserts);
-  const sfIds = sfResults.map(r => Number(r.meta.last_row_id));
-
-  // Final feeds from both SFs
-  await db.prepare("INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES ('final', 'Final', ?, ?)").bind(sfIds[0], sfIds[1]).run();
-
-  // Third place also feeds from both SFs (same as final but different label)
-  await db.prepare("INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES ('third_place', '3rd Place', ?, ?)").bind(sfIds[0], sfIds[1]).run();
+  await insertWithFeeders(30, 2);
 
   return Response.json({ seeded: 32 });
 }
@@ -113,7 +84,6 @@ async function getBracket(db: D1Database) {
     ORDER BY m.id
   `).all();
 
-  // Determine which teams are eligible for R32 (qualified from groups)
   const groupsRes = await db.prepare(`
     SELECT t.id, t.name, t.flag_emoji, t.group_letter,
       COALESCE(SUM(CASE WHEN m.home_team_id = t.id AND m.home_score > m.away_score THEN 3 WHEN m.home_team_id = t.id AND m.home_score = m.away_score THEN 1 WHEN m.away_team_id = t.id AND m.away_score > m.home_score THEN 3 WHEN m.away_team_id = t.id AND m.away_score = m.home_score THEN 1 ELSE 0 END), 0) as pts,

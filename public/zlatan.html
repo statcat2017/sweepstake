@@ -65,7 +65,11 @@
 
     <div class="card">
       <h2>Match Results</h2>
-      <p>Enter scores for played matches.</p>
+      <p>Enter scores for played matches, or sync automatically from API-Football.</p>
+      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" id="sync-btn" onclick="syncScores()">Sync Scores from API</button>
+      </div>
+      <div id="sync-result" style="margin-bottom:12px"></div>
       <div id="match-list"></div>
     </div>
 
@@ -459,6 +463,44 @@
     if (res.ok) {
       alert('Score saved!', 'success');
       load();
+    }
+  }
+
+  async function syncScores() {
+    const btn = document.getElementById('sync-btn');
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+    document.getElementById('sync-result').innerHTML = '<p style="color:var(--gray-400)">Fetching fixtures from API-Football...</p>';
+
+    try {
+      const res = await apiFetch('/api/sync', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.error) {
+        document.getElementById('sync-result').innerHTML = `<div class="alert error">${data.error}</div>`;
+      } else {
+        let html = '<div class="alert success" style="font-size:13px">';
+        html += `<strong>Sync complete</strong> — ${data.fixtures_fetched} fixtures fetched<br>`;
+        html += `Group scores: ${data.group_scores_updated} updated, ${data.group_scores_skipped} unchanged<br>`;
+        html += `Knockout scores: ${data.knockout_scores_updated} updated, ${data.knockout_scores_skipped} unchanged<br>`;
+        if (data.r32_teams_assigned > 0) html += `R32 teams assigned: ${data.r32_teams_assigned}<br>`;
+        if (data.r16_advanced > 0) html += `Advanced to R16: ${data.r16_advanced}<br>`;
+        if (data.qf_advanced > 0) html += `Advanced to QF: ${data.qf_advanced}<br>`;
+        if (data.sf_advanced > 0) html += `Advanced to SF: ${data.sf_advanced}<br>`;
+        if (data.final_advanced > 0) html += `Final/3rd updated: ${data.final_advanced}<br>`;
+        if (data.errors?.length) {
+          html += `<span style="color:var(--red)">Warnings:</span> ${data.errors.slice(0, 3).join('; ')}`;
+          if (data.errors.length > 3) html += ` (+${data.errors.length - 3} more)`;
+        }
+        html += '</div>';
+        document.getElementById('sync-result').innerHTML = html;
+        load();
+      }
+    } catch (err) {
+      document.getElementById('sync-result').innerHTML = `<div class="alert error">Sync failed: ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sync Scores from API';
     }
   }
 

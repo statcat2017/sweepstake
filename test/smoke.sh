@@ -160,7 +160,23 @@ if [ "$KO_MATCHES" != "32" ]; then
 fi
 
 echo ""
-echo "--- 7. Reset ---"
+echo "--- 7. Sync endpoint ---"
+check401 "POST /api/sync (no auth)"  -X POST "$BASE/api/sync"
+
+# Call sync and verify the response structure
+SYNC_RESP=$(curl -s -X POST "$BASE/api/sync" -H "$AUTH")
+SYNC_OK=$(echo "$SYNC_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('synced',''))" 2>/dev/null)
+if [ "$SYNC_OK" = "True" ]; then
+  echo "  PASS sync returned synced=True (fixtures: $(echo "$SYNC_RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("fixtures_fetched",0))'))"
+  PASS=$((PASS + 1))
+else
+  SYNC_ERR=$(echo "$SYNC_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',''))" 2>/dev/null)
+  echo "  FAIL sync did not complete (error: $SYNC_ERR)"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+echo "--- 8. Reset ---"
 check200 "Reset draw" -X DELETE "$BASE/api/draw" -H "$AUTH"
 RESET_DRAWN=$(curl -sf "$BASE/api/standings" | python3 -c "import sys,json; print(json.load(sys.stdin)['drawn'])" 2>/dev/null)
 if [ "$RESET_DRAWN" != "False" ]; then
