@@ -15,6 +15,7 @@ npm run deploy       # deploy to production (--branch main)
 npm run db:init      # create tables from schema.sql
 npm run db:seed      # load 48 WC2026 teams
 npm run db:migrate   # run schema-migration.sql
+npm run db:migrate-fifa-rank  # apply fifa_rank column + data
 npm run db:reset     # DROP ALL tables
 npm run smoke        # run test/smoke.sh against http://localhost:8787
 ```
