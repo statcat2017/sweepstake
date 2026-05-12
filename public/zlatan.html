@@ -16,7 +16,7 @@
       max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     }
     .auth-box h2 { font-size: 20px; margin-bottom: 4px; }
-    .auth-box p { color: #6b7280; margin-bottom: 20px; }
+    .auth-box p { color: var(--gray-500); margin-bottom: 20px; }
   </style>
 </head>
 <body>
@@ -24,8 +24,9 @@
     <div class="auth-box">
       <h2>Admin Access</h2>
       <p>Enter password to manage the sweepstake.</p>
+      <label for="auth-password">Password</label>
       <div class="form-row">
-        <input type="password" id="auth-password" placeholder="Password" onkeydown="if(event.key==='Enter') authenticate()">
+        <input type="password" id="auth-password" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter') authenticate()">
         <button class="btn primary" onclick="authenticate()">Enter</button>
       </div>
       <div id="auth-error" style="color:var(--red);margin-top:8px;font-size:13px"></div>
@@ -45,6 +46,7 @@
     <div class="card">
       <h2>Participants</h2>
       <p>Add people to the sweepstake.</p>
+      <label for="participant-name">Participant Name</label>
       <div class="form-row">
         <input type="text" id="participant-name" placeholder="Enter name" onkeydown="if(event.key==='Enter') addParticipant()">
         <button class="btn primary" onclick="addParticipant()">Add</button>
@@ -151,7 +153,7 @@
           <tr>
             <td>${p.name}</td>
             <td>
-              ${drawLocked ? '' : `<button class="btn outline" onclick="removeParticipant(${p.id})" style="padding:4px 8px;font-size:12px">Remove</button>`}
+              ${drawLocked ? '' : `<button class="btn outline" onclick="removeParticipant(${p.id})" style="padding:6px 12px;font-size:13px;min-height:unset">Remove</button>`}
             </td>
           </tr>
         `).join('')}
@@ -203,7 +205,7 @@
                 <input type="text" inputmode="numeric" pattern="[0-9]*" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
                 <span>-</span>
                 <input type="text" inputmode="numeric" pattern="[0-9]*" id="as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
-                <button class="btn primary" onclick="saveScore(${m.id})" style="padding:4px 10px;font-size:12px">Save</button>
+                <button class="btn primary" onclick="saveScore(${m.id})" style="padding:6px 12px;font-size:13px;min-height:unset">Save</button>
               </div>
             </div>
           `;
