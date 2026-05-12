@@ -2,3 +2,6 @@ node_modules/
 .dev.vars
 .wrangler/
 data/
+.agents/
+skills-lock.json
+test-results/
