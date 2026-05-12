@@ -157,7 +157,8 @@
     skipBtn.onclick = finishAll;
 
     function next() {
-      if (cancelled || index >= assignments.length) return;
+      if (cancelled) return;
+      if (index >= assignments.length) { finishAll(); return; }
 
       const a = assignments[index];
       const teamChips = Array.from(document.querySelectorAll('.team-pool .team-chip')).filter(
