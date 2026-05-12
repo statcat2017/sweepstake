@@ -9,6 +9,7 @@
     "db:seed": "wrangler d1 execute sweepstake-db --file=./seed.sql",
     "db:reset": "wrangler d1 execute sweepstake-db --command='DROP TABLE IF EXISTS matches; DROP TABLE IF EXISTS participant_teams; DROP TABLE IF EXISTS participants; DROP TABLE IF EXISTS teams; DROP TABLE IF EXISTS sweepstake;'",
     "db:migrate": "wrangler d1 execute sweepstake-db --file=./schema-migration.sql",
+    "db:migrate-fifa-rank": "wrangler d1 execute sweepstake-db --file=./schema-migration-fifa-rank.sql",
     "smoke": "bash test/smoke.sh"
   },
   "devDependencies": {
