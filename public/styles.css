@@ -137,11 +137,16 @@ th { font-weight: 600; color: var(--gray-500); font-size: 12px; text-transform: 
 
 .btn.primary { background: var(--blue); color: white; }
 .btn.primary:hover { background: #1d4ed8; }
+.btn.primary:active { background: #1e40af; }
 .btn.danger { background: var(--red); color: white; }
 .btn.danger:hover { background: #b91c1c; }
+.btn.danger:active { background: #991b1b; }
 .btn.outline { background: white; border: 1px solid var(--gray-300); color: var(--gray-700); }
 .btn.outline:hover { background: var(--gray-50); }
+.btn.outline:active { background: var(--gray-200); }
 .btn:disabled { opacity: 0.5; cursor: default; }
+
+svg.icon { vertical-align: middle; display: inline; }
 
 input, select {
   padding: 8px 12px;
@@ -284,7 +289,7 @@ tr.status-third { background: #fefce8; }
   color: var(--gray-400);
 }
 
-.empty-state h3 { color: var(--gray-600); margin-bottom: 8px; }
+.empty-state h2 { color: var(--gray-600); margin-bottom: 8px; }
 
 .draw-layout {
   display: grid;
