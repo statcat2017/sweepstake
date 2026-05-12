@@ -216,7 +216,7 @@ input, select {
 }
 
 .fixture-time {
-  min-width: 72px;
+  min-width: 104px;
   font-size: 11px;
   color: var(--gray-400);
   white-space: nowrap;
@@ -397,6 +397,8 @@ tr.status-third { background: #fefce8; }
     grid-column: auto !important;
     grid-row: auto !important;
   }
+  .group-layout { flex-direction: column; }
+  .group-fixtures { width: 100%; min-width: 0; }
 }
 
 #auth-overlay {
