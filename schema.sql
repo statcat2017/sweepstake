@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS teams (
   name TEXT NOT NULL UNIQUE,
   group_letter TEXT NOT NULL,
   flag_emoji TEXT,
+  fifa_rank INTEGER,
   eliminated INTEGER NOT NULL DEFAULT 0
 );
 

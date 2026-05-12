@@ -104,7 +104,10 @@ add_participant() {
 ALICE_ID=$(add_participant "SmokeAlice")
 BOB_ID=$(add_participant "SmokeBob")
 CAROL_ID=$(add_participant "SmokeCarol")
-CREATED_PARTICIPANTS="$ALICE_ID $BOB_ID $CAROL_ID"
+DAVE_ID=$(add_participant "SmokeDave")
+EVE_ID=$(add_participant "SmokeEve")
+FRANK_ID=$(add_participant "SmokeFrank")
+CREATED_PARTICIPANTS="$ALICE_ID $BOB_ID $CAROL_ID $DAVE_ID $EVE_ID $FRANK_ID"
 echo "  Created participants: $CREATED_PARTICIPANTS"
 
 # Duplicate name should fail
@@ -112,7 +115,7 @@ check "Add duplicate" 409 -X POST "$BASE/api/participants" -H "$AUTH" -H "$JSON"
 
 # Delete one
 check200 "Delete Bob"  -X DELETE "$BASE/api/participants" -H "$AUTH" -H "$JSON" -d "{\"id\":$BOB_ID}"
-CREATED_PARTICIPANTS="$ALICE_ID $CAROL_ID"
+CREATED_PARTICIPANTS="$ALICE_ID $CAROL_ID $DAVE_ID $EVE_ID $FRANK_ID"
 
 echo ""
 echo "--- 4. Draw flow ---"
@@ -125,6 +128,21 @@ parts = len(d['participants'])
 print(f'drawn={d[\"drawn\"]}, participants={parts}, teams_assigned={teams}')
 " 2>/dev/null)
 echo "  $DRAW_INFO"
+
+# Verify bonus pool sizing: 48 % 5 = 3 bonus teams with 5 participants
+BONUS_COUNT=$(curl -sf "$BASE/api/standings" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+bonus = sum(t.get('bonus', 0) for t in d.get('teams', []))
+print(bonus)
+" 2>/dev/null)
+if [ "$BONUS_COUNT" = "3" ]; then
+  echo "  PASS bonus teams: $BONUS_COUNT (expected 3 for 5 participants)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL bonus teams: $BONUS_COUNT (expected 3 for 5 participants)"
+  FAIL=$((FAIL + 1))
+fi
 
 # Second draw should be rejected
 check "Draw locked" 409 -X POST "$BASE/api/draw"

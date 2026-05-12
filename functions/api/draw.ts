@@ -28,29 +28,41 @@ async function handleDraw(db: D1Database): Promise<Response> {
     return Response.json({ error: "No participants added yet." }, { status: 400 });
   }
 
-  const teams = await db.prepare("SELECT id FROM teams ORDER BY RANDOM()").all<{ id: number }>();
+  const missingRanks = await db.prepare("SELECT COUNT(*) AS count FROM teams WHERE fifa_rank IS NULL").first<{ count: number }>();
+  if ((missingRanks?.count ?? 0) > 0) {
+    return Response.json({ error: "Cannot run ranked draw: some teams are missing fifa_rank." }, { status: 500 });
+  }
+
+  const teams = await db.prepare("SELECT id FROM teams ORDER BY fifa_rank ASC").all<{ id: number }>();
 
   if (teams.results.length < participants.results.length) {
     return Response.json({ error: "Not enough teams for all participants." }, { status: 400 });
   }
 
-  const assignments: Array<{ participant_id: number; team_id: number; bonus: number }> = [];
   const teamsPerParticipant = Math.floor(teams.results.length / participants.results.length);
+  const mainPoolCount = participants.results.length * teamsPerParticipant;
+
+  // Main pool: best teams split evenly
+  const mainPool = [...teams.results.slice(0, mainPoolCount)].sort(() => Math.random() - 0.5);
+  // Bonus pool: lowest-ranked teams
+  const bonusPool = teams.results.slice(mainPoolCount);
+
+  const assignments: Array<{ participant_id: number; team_id: number; bonus: number }> = [];
   let teamIndex = 0;
 
   for (const participant of participants.results) {
     for (let t = 0; t < teamsPerParticipant; t++) {
-      if (teamIndex < teams.results.length) {
-        assignments.push({ participant_id: participant.id, team_id: teams.results[teamIndex].id, bonus: 0 });
+      if (teamIndex < mainPool.length) {
+        assignments.push({ participant_id: participant.id, team_id: mainPool[teamIndex].id, bonus: 0 });
         teamIndex++;
       }
     }
   }
 
-  const luckyParticipants = [...participants.results].sort(() => Math.random() - 0.5).slice(0, teams.results.length - teamIndex);
-  for (const participant of luckyParticipants) {
-    assignments.push({ participant_id: participant.id, team_id: teams.results[teamIndex].id, bonus: 1 });
-    teamIndex++;
+  // Bonus round: each bonus team goes to a random participant
+  for (const bonusTeam of bonusPool) {
+    const lucky = participants.results[Math.floor(Math.random() * participants.results.length)];
+    assignments.push({ participant_id: lucky.id, team_id: bonusTeam.id, bonus: 1 });
   }
 
   const insertStmt = db.prepare("INSERT OR IGNORE INTO participant_teams (participant_id, team_id, bonus) VALUES (?, ?, ?)");
