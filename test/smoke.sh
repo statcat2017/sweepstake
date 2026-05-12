@@ -106,7 +106,8 @@ BOB_ID=$(add_participant "SmokeBob")
 CAROL_ID=$(add_participant "SmokeCarol")
 DAVE_ID=$(add_participant "SmokeDave")
 EVE_ID=$(add_participant "SmokeEve")
-CREATED_PARTICIPANTS="$ALICE_ID $BOB_ID $CAROL_ID $DAVE_ID $EVE_ID"
+FRANK_ID=$(add_participant "SmokeFrank")
+CREATED_PARTICIPANTS="$ALICE_ID $BOB_ID $CAROL_ID $DAVE_ID $EVE_ID $FRANK_ID"
 echo "  Created participants: $CREATED_PARTICIPANTS"
 
 # Duplicate name should fail
@@ -114,7 +115,7 @@ check "Add duplicate" 409 -X POST "$BASE/api/participants" -H "$AUTH" -H "$JSON"
 
 # Delete one
 check200 "Delete Bob"  -X DELETE "$BASE/api/participants" -H "$AUTH" -H "$JSON" -d "{\"id\":$BOB_ID}"
-CREATED_PARTICIPANTS="$ALICE_ID $CAROL_ID $DAVE_ID $EVE_ID"
+CREATED_PARTICIPANTS="$ALICE_ID $CAROL_ID $DAVE_ID $EVE_ID $FRANK_ID"
 
 echo ""
 echo "--- 4. Draw flow ---"
