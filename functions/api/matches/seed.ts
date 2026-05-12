@@ -1,5 +1,6 @@
 import { getDb } from "../db";
 import { requireAuth } from "../auth";
+import { getKickoff } from "./schedule";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
@@ -37,6 +38,29 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   `);
 
   const results = await db.batch(inserts.map((i) => stmt.bind(i.stage, i.group_letter, i.home_team_id, i.away_team_id)));
+
+  // Set kickoff times from the known schedule
+  let matchIdx = 0;
+  let currentGroup = '';
+  const updateStmt = db.prepare(`
+    UPDATE matches SET kickoff_at = ?, updated_at = datetime('now')
+    WHERE stage = 'group' AND group_letter = ? AND home_team_id = ? AND away_team_id = ?
+  `);
+  const kickoffUpdates: D1PreparedStatement[] = [];
+
+  for (const ins of inserts) {
+    if (ins.group_letter !== currentGroup) {
+      matchIdx = 0;
+      currentGroup = ins.group_letter;
+    }
+    const kickoff = getKickoff(ins.group_letter, matchIdx);
+    if (kickoff) {
+      kickoffUpdates.push(updateStmt.bind(kickoff, ins.group_letter, ins.home_team_id, ins.away_team_id));
+    }
+    matchIdx++;
+  }
+
+  await db.batch(kickoffUpdates);
 
   return Response.json({ seeded: results.length });
 }
