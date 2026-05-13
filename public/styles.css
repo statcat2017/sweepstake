@@ -88,9 +88,10 @@ label {
 
 .draw-participants .participant-card {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+  overflow: hidden;
 }
 
 .draw-participants .participant-card h3 {
