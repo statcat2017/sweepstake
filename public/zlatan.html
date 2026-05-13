@@ -160,8 +160,8 @@
       </tbody></table>`;
     }
 
+    const el = document.getElementById('draw-result');
     if (standings.drawn && standings.participants) {
-      const el = document.getElementById('draw-result');
       el.innerHTML = '<h4 style="margin-bottom:8px">Current Draw</h4><div class="grid">';
       for (const p of standings.participants) {
         const playerTeams = standings.teams.filter(t => t.participant_id == p.id);
@@ -175,6 +175,8 @@
         </div>`;
       }
       el.innerHTML += '</div>';
+    } else {
+      el.innerHTML = '';
     }
 
     const matchList = document.getElementById('match-list');
