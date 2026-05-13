@@ -17,7 +17,7 @@ npm run db:seed      # load 48 WC2026 teams
 npm run db:migrate   # run schema-migration.sql
 npm run db:migrate-fifa-rank  # apply fifa_rank column + data
 npm run db:migrate-draw-fix   # catch-up for partial migration (winner_team_id + fifa_rank + ranks)
-npm run db:reset     # DROP ALL tables
+npm run db:reset     # DROP ALL tables (incl. knockout_picks)
 npm run smoke        # run test/smoke.sh against http://localhost:8787
 ```
 

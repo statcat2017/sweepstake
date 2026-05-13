@@ -1,14 +1,5 @@
 import { getDb, isDrawLocked } from "./db";
-
-function sortByPointsGDGoals(a: any, b: any) {
-  const ptsA = a.points ?? 0;
-  const ptsB = b.points ?? 0;
-  if (ptsB !== ptsA) return ptsB - ptsA;
-  const gdA = (a.goals_for ?? 0) - (a.goals_against ?? 0);
-  const gdB = (b.goals_for ?? 0) - (b.goals_against ?? 0);
-  if (gdB !== gdA) return gdB - gdA;
-  return (b.goals_for ?? 0) - (a.goals_for ?? 0);
-}
+import { sortByPointsGDGoals } from "./sync/standings-helper";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
   const db = getDb(context.env);

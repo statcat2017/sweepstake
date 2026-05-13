@@ -1,10 +1,13 @@
-import { getDb, isDrawLocked } from "./db";
+import { getDb } from "./db";
+import { acquireDrawLock } from "./db";
 import { requireAuth } from "./auth";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
 
   if (context.request.method === "POST") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
     return handleDraw(db);
   }
 
@@ -18,7 +21,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 }
 
 async function handleDraw(db: D1Database): Promise<Response> {
-  if (await isDrawLocked(db)) {
+  if (!(await acquireDrawLock(db))) {
     return Response.json({ error: "Draw has already been locked. Reset it first." }, { status: 409 });
   }
 
@@ -66,12 +69,10 @@ async function handleDraw(db: D1Database): Promise<Response> {
   }
 
   const insertStmt = db.prepare("INSERT OR IGNORE INTO participant_teams (participant_id, team_id, bonus) VALUES (?, ?, ?)");
-  const updateStmt = db.prepare("UPDATE sweepstake SET drawn = 1, updated_at = datetime('now') WHERE id = 1");
 
-  await db.batch([
-    ...assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id, a.bonus)),
-    updateStmt
-  ]);
+  await db.batch(
+    assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id, a.bonus))
+  );
 
   const result = await db.prepare(`
     SELECT p.name as participant, t.name as team, t.group_letter, t.flag_emoji, pt.bonus
@@ -87,7 +88,7 @@ async function handleDraw(db: D1Database): Promise<Response> {
 async function handleReset(db: D1Database): Promise<Response> {
   await db.batch([
     db.prepare("DELETE FROM participant_teams"),
-    db.prepare("DELETE FROM matches"),
+    db.prepare("DELETE FROM matches WHERE stage = 'group'"),
     db.prepare("UPDATE sweepstake SET drawn = 0, updated_at = datetime('now') WHERE id = 1")
   ]);
 

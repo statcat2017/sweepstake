@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { requireAuth } from "./auth";
+import { parseJsonBody, validateScores, validateId } from "./shared/validation";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
@@ -26,22 +27,23 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     const auth = requireAuth(context.request, context.env);
     if (auth) return auth;
 
-    const body = await context.request.json() as {
-      id: number;
-      home_score: number | null;
-      away_score: number | null;
-    };
+    const parsed = await parseJsonBody(context.request);
+    if (parsed instanceof Response) return parsed;
+    const body = parsed.data;
 
-    if (!body.id) {
-      return Response.json({ error: "Match ID is required." }, { status: 400 });
-    }
+    const idResult = validateId(body);
+    if (idResult instanceof Response) return idResult;
 
-    const played = body.home_score !== null && body.away_score !== null ? 1 : 0;
+    const scoreResult = validateScores(body.home_score, body.away_score);
+    if (scoreResult instanceof Response) return scoreResult;
+
+    const { home, away } = scoreResult;
+    const played = body.home_score !== undefined && body.home_score !== null ? 1 : 0;
 
     await db.prepare(`
       UPDATE matches SET home_score = ?, away_score = ?, played = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).bind(body.home_score, body.away_score, played, body.id).run();
+    `).bind(home, away, played, idResult).run();
 
     return Response.json({ updated: true });
   }
