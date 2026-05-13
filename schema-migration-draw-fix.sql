@@ -1,13 +1,8 @@
--- Run this ONCE on existing databases to add columns added after initial deploy.
--- WARNING: not idempotent — fails if any column already exists (SQLite lacks IF NOT EXISTS).
--- If partially applied, run `npm run db:migrate-draw-fix` to catch up missing columns.
-ALTER TABLE matches ADD COLUMN api_fixture_id INTEGER;
+-- Catch-up: add columns missing after partial schema-migration.sql application.
+-- Run this on databases that have api_fixture_id but are missing winner_team_id / fifa_rank.
 ALTER TABLE matches ADD COLUMN winner_team_id INTEGER REFERENCES teams(id);
-
--- Add FIFA ranking column for ranked draw
 ALTER TABLE teams ADD COLUMN fifa_rank INTEGER;
 
--- Populate ranks for existing teams (April 2026 FIFA ranking)
 UPDATE teams SET fifa_rank = 15 WHERE id = 1;
 UPDATE teams SET fifa_rank = 25 WHERE id = 2;
 UPDATE teams SET fifa_rank = 59 WHERE id = 3;
