@@ -53,7 +53,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     const body = parsed.data;
     const id = body.id;
 
-    if (!id) {
+    if (!Number.isInteger(id) || id < 1) {
       return Response.json({ error: "Participant ID is required." }, { status: 400 });
     }
 

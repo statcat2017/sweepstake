@@ -15,7 +15,7 @@ export function validateScores(home_score: unknown, away_score: unknown): Respon
   }
 
   if (!hasHome && !hasAway) {
-    return { home: 0, away: 0 }
+    return Response.json({ error: "Scores are required." }, { status: 400 })
   }
 
   if (!Number.isInteger(home_score) || !Number.isInteger(away_score)) {

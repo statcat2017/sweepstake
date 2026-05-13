@@ -27,14 +27,14 @@ export interface QualifiedTeams {
   bestThird: TeamWithGroup[];
 }
 
-export function sortByPointsGDGoals(a: { points?: number; goals_for?: number; goals_against?: number }, b: { points?: number; goals_for?: number; goals_against?: number }): number {
-  const ptsA = a.points ?? 0
-  const ptsB = b.points ?? 0
+export function sortByPointsGDGoals(a: { points?: number; goals_for?: number; goals_against?: number; pts?: number; gf?: number; ga?: number }, b: { points?: number; goals_for?: number; goals_against?: number; pts?: number; gf?: number; ga?: number }): number {
+  const ptsA = (a.points ?? (a as any).pts ?? 0)
+  const ptsB = (b.points ?? (b as any).pts ?? 0)
   if (ptsB !== ptsA) return ptsB - ptsA
-  const gdA = (a.goals_for ?? 0) - (a.goals_against ?? 0)
-  const gdB = (b.goals_for ?? 0) - (b.goals_against ?? 0)
+  const gdA = (a.goals_for ?? (a as any).gf ?? 0) - (a.goals_against ?? (a as any).ga ?? 0)
+  const gdB = (b.goals_for ?? (b as any).gf ?? 0) - (b.goals_against ?? (b as any).ga ?? 0)
   if (gdB !== gdA) return gdB - gdA
-  return (b.goals_for ?? 0) - (a.goals_for ?? 0)
+  return (b.goals_for ?? (b as any).gf ?? 0) - (a.goals_for ?? (a as any).gf ?? 0)
 }
 
 export function computeGroupStandings(rows: GroupStandingRow[]): Record<string, TeamWithGroup[]> {
