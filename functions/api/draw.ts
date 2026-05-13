@@ -5,8 +5,6 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   const db = getDb(context.env);
 
   if (context.request.method === "POST") {
-    const auth = requireAuth(context.request, context.env);
-    if (auth) return auth;
     return handleDraw(db);
   }
 
