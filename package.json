@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler pages dev public --bindings='{\"DB\":{\"type\":\"d1\",\"name\":\"sweepstake-db\"}}'",
+    "dev": "wrangler pages dev public --d1 DB=sweepstake-db",
     "deploy": "wrangler pages deploy public --branch main",
     "db:init": "wrangler d1 execute sweepstake-db --file=./schema.sql",
     "db:seed": "wrangler d1 execute sweepstake-db --file=./seed.sql",
