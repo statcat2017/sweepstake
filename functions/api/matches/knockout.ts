@@ -2,6 +2,7 @@ import { getDb } from "../db";
 import { requireAuth } from "../auth";
 import { generateBracketSeeds } from "../sync/bracket-paths";
 import { sortByPointsGDGoals } from "../sync/standings-helper";
+import { parseJsonBody, validateScores, validateId } from "../shared/validation";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
@@ -19,7 +20,9 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   if (context.request.method === "PUT") {
     const auth = requireAuth(context.request, context.env);
     if (auth) return auth;
-    return updateKnockoutMatch(db, await context.request.json());
+    const parsed = await parseJsonBody(context.request);
+    if (parsed instanceof Response) return parsed;
+    return updateKnockoutMatch(db, parsed.data);
   }
 
   return new Response("Method not allowed", { status: 405 });
@@ -136,9 +139,9 @@ async function getBracket(db: D1Database) {
 }
 
 async function updateKnockoutMatch(db: D1Database, body: any) {
-  if (!body.id) {
-    return Response.json({ error: "Match ID is required." }, { status: 400 });
-  }
+  const idResult = validateId(body);
+  if (idResult instanceof Response) return idResult;
+  const id = idResult;
 
   const updates: string[] = [];
   const values: any[] = [];
@@ -151,24 +154,22 @@ async function updateKnockoutMatch(db: D1Database, body: any) {
     updates.push("away_team_id = ?");
     values.push(body.away_team_id || null);
   }
-  if (body.home_score !== undefined) {
-    updates.push("home_score = ?");
-    values.push(body.home_score !== '' ? body.home_score : null);
-  }
-  if (body.away_score !== undefined) {
-    updates.push("away_score = ?");
-    values.push(body.away_score !== '' ? body.away_score : null);
-  }
 
-  if (body.home_score !== undefined && body.away_score !== undefined) {
-    const h = body.home_score !== '' ? parseInt(body.home_score) : null;
-    const a = body.away_score !== '' ? parseInt(body.away_score) : null;
+  const hasScoreUpdate = body.home_score !== undefined || body.away_score !== undefined;
+  if (hasScoreUpdate) {
+    const scoreResult = validateScores(body.home_score, body.away_score);
+    if (scoreResult instanceof Response) return scoreResult;
+    const { home, away } = scoreResult;
+    updates.push("home_score = ?");
+    values.push(body.home_score !== undefined && body.home_score !== null ? home : null);
+    updates.push("away_score = ?");
+    values.push(body.away_score !== undefined && body.away_score !== null ? away : null);
     updates.push("played = ?");
-    values.push(h !== null && a !== null ? 1 : 0);
+    values.push(body.home_score !== undefined && body.home_score !== null ? 1 : 0);
   }
 
   updates.push("updated_at = datetime('now')");
-  values.push(body.id);
+  values.push(id);
 
   await db.prepare(`UPDATE matches SET ${updates.join(", ")} WHERE id = ?`).bind(...values).run();
 

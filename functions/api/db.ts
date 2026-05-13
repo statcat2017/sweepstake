@@ -10,3 +10,10 @@ export async function isDrawLocked(db: D1Database): Promise<boolean> {
   const state = await db.prepare("SELECT drawn FROM sweepstake WHERE id = 1").first<{ drawn: number }>();
   return !!(state?.drawn);
 }
+
+export async function acquireDrawLock(db: D1Database): Promise<boolean> {
+  const result = await db.prepare(
+    "UPDATE sweepstake SET drawn = 1, updated_at = datetime('now') WHERE id = 1 AND drawn = 0"
+  ).run();
+  return result.meta.changes > 0;
+}

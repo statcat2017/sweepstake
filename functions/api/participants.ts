@@ -1,5 +1,6 @@
 import { getDb, isDrawLocked } from "./db";
 import { requireAuth } from "./auth";
+import { parseJsonBody } from "./shared/validation";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
@@ -18,7 +19,9 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     const auth = requireAuth(context.request, context.env);
     if (auth) return auth;
 
-    const body = await context.request.json() as { name: string };
+    const parsed = await parseJsonBody(context.request);
+    if (parsed instanceof Response) return parsed;
+    const body = parsed.data;
     const name = body.name?.trim();
 
     if (!name) {
@@ -45,14 +48,19 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       return Response.json({ error: "Draw is locked. Reset it before removing participants." }, { status: 409 });
     }
 
-    const body = await context.request.json() as { id?: number };
+    const parsed = await parseJsonBody(context.request);
+    if (parsed instanceof Response) return parsed;
+    const body = parsed.data;
     const id = body.id;
 
-    if (!id) {
+    if (!Number.isInteger(id) || id < 1) {
       return Response.json({ error: "Participant ID is required." }, { status: 400 });
     }
 
-    await db.prepare("DELETE FROM participants WHERE id = ?").bind(id).run();
+    const result = await db.prepare("DELETE FROM participants WHERE id = ?").bind(id).run();
+    if (result.meta.changes === 0) {
+      return Response.json({ error: "Participant not found." }, { status: 404 });
+    }
     return Response.json({ deleted: true });
   }
 

@@ -21,6 +21,14 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     groups.set(team.group_letter, group);
   }
 
+  for (const [group, groupTeams] of groups) {
+    if (groupTeams.length !== 4) {
+      return Response.json({ error: `Group ${group} has ${groupTeams.length} teams, expected 4.` }, { status: 400 });
+    }
+  }
+
+  await db.prepare("DELETE FROM matches WHERE stage = 'group'").run();
+
   const inserts: Array<{ stage: string; group_letter: string; home_team_id: number; away_team_id: number }> = [];
 
   for (const [group, groupTeams] of groups) {
@@ -33,7 +41,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO matches (stage, group_letter, home_team_id, away_team_id)
+    INSERT INTO matches (stage, group_letter, home_team_id, away_team_id)
     VALUES (?, ?, ?, ?)
   `);
 
