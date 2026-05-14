@@ -130,14 +130,9 @@ async function handleReset(db: D1Database): Promise<Response> {
   await db.batch([
     db.prepare("DELETE FROM participant_teams"),
     db.prepare("DELETE FROM matches WHERE stage = 'group'"),
+    db.prepare("DELETE FROM matches WHERE stage != 'group'"),
     db.prepare("UPDATE sweepstake SET drawn = 0, updated_at = datetime('now') WHERE id = 1")
   ]);
-
-  await db.prepare(`
-    UPDATE matches SET home_team_id = NULL, away_team_id = NULL,
-    home_score = NULL, away_score = NULL, played = 0, winner_team_id = NULL
-    WHERE stage != 'group'
-  `).run();
 
   return Response.json({ drawn: false });
 }
