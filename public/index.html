@@ -56,10 +56,48 @@
       return;
     }
 
+    const playerCount = participantList.length;
+    const teamCount = allTeams.length;
+    const potCount = Math.floor(teamCount / playerCount);
+    const mainPoolCount = potCount * playerCount;
+    const bonusCount = teamCount % playerCount;
+
+    const rankedTeams = [...allTeams].sort((a, b) => (a.fifa_rank ?? 999) - (b.fifa_rank ?? 999));
+    const mainTeams = rankedTeams.slice(0, mainPoolCount);
+    const bonusTeams = rankedTeams.slice(mainPoolCount);
+
+    const pots = [];
+    for (let i = 0; i < potCount; i++) {
+      pots.push(mainTeams.slice(i * playerCount, (i + 1) * playerCount));
+    }
+
+    let potsHtml = '';
+    for (let i = 0; i < pots.length; i++) {
+      potsHtml += `<div class="pot-section">
+        <div class="pot-header">Pot ${i + 1}</div>
+        <div class="team-pool">
+          ${pots[i].map(t => `
+            <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+
+    if (bonusCount > 0) {
+      potsHtml += `<div class="pot-section">
+        <div class="pot-header">Bonus</div>
+        <div class="team-pool">
+          ${bonusTeams.map(t => `
+            <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+
     let html = `<h1>World Cup 2026 Sweepstake Draw</h1>
       <div class="draw-layout">
         <div class="draw-participants">
-          <h2>Participants</h2>
+          <h2>Participants (${playerCount})</h2>
           ${participantList.map(p => `
             <div class="participant-card" data-participant="${p.name.replace(/"/g, '&quot;')}">
               <h3>${p.name}</h3>
@@ -68,12 +106,8 @@
           `).join('')}
         </div>
         <div class="draw-pool">
-          <h2>Teams</h2>
-          <div class="team-pool">
-            ${allTeams.map(t => `
-              <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
-            `).join('')}
-          </div>
+          <h2>Teams (${teamCount}) — ${potCount} pots × ${playerCount}, +${bonusCount} bonus</h2>
+          ${potsHtml}
         </div>
       </div>
       <div style="text-align:center;margin-top:24px">
@@ -89,7 +123,34 @@
     btn.disabled = true;
     btn.textContent = 'Drawing...';
 
-    const res = await fetch('/api/draw', { method: 'POST' });
+    let password = sessionStorage.getItem('sweepstake_auth') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (password) headers['Authorization'] = 'Bearer ' + password;
+
+    const res = await fetch('/api/draw', { method: 'POST', headers });
+
+    if (res.status === 401) {
+      password = prompt('Admin password required to run the draw:');
+      if (!password) {
+        btn.disabled = false;
+        btn.innerHTML = ICONS.dice + ' Start Draw';
+        return;
+      }
+      sessionStorage.setItem('sweepstake_auth', password);
+      headers['Authorization'] = 'Bearer ' + password;
+      const retry = await fetch('/api/draw', { method: 'POST', headers });
+      if (!retry.ok) {
+        const err = await retry.json();
+        alert('Draw failed: ' + (err.error || 'unknown error'));
+        btn.disabled = false;
+        btn.innerHTML = ICONS.dice + ' Start Draw';
+        return;
+      }
+      const data = await retry.json();
+      animateDraw(data.participants, data.potCount, data.bonusCount);
+      return;
+    }
+
     if (!res.ok) {
       const err = await res.json();
       alert('Draw failed: ' + (err.error || 'unknown error'));
@@ -99,10 +160,10 @@
     }
 
     const data = await res.json();
-    animateDraw(data.participants);
+    animateDraw(data.participants, data.potCount, data.bonusCount);
   }
 
-  function animateDraw(assignments) {
+  function animateDraw(assignments, potCount, bonusCount) {
     if (!assignments || assignments.length === 0) return;
 
     const btnArea = document.querySelector('#app > div[style*="text-align:center"]');
@@ -122,6 +183,7 @@
 
     let index = 0;
     let cancelled = false;
+    let lastPot = null;
 
     function finishAll() {
       cancelled = true;
@@ -138,8 +200,9 @@
         });
         const card = document.querySelector(`.participant-card[data-participant="${CSS.escape(a.participant)}"]`);
         if (card) {
+          const potTag = a.pot ? ` <span class="badge pot">P${a.pot}</span>` : '';
           const bonusTag = a.bonus ? ' <span class="badge bonus">BONUS</span>' : '';
-          card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}${bonusTag}</span>`;
+          card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}${potTag}${bonusTag}</span>`;
           card.classList.add('revealed');
         }
         index++;
@@ -161,32 +224,49 @@
       if (index >= assignments.length) { finishAll(); return; }
 
       const a = assignments[index];
-      const teamChips = Array.from(document.querySelectorAll('.team-pool .team-chip')).filter(
-        chip => chip.dataset.team === a.team
-      );
-      teamChips.forEach(chip => chip.classList.add('selected'));
 
-      status.innerHTML = `${ICONS.dice} Drawing... <strong>${a.flag_emoji} ${a.team}</strong>`;
-
-      setTimeout(() => {
-        if (cancelled) return;
-        const card = document.querySelector(`.participant-card[data-participant="${CSS.escape(a.participant)}"]`);
-        if (card) {
-          const bonusTag = a.bonus ? ' <span class="badge bonus">BONUS</span>' : '';
-          card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}${bonusTag}</span>`;
-          card.classList.add('revealed');
+      if (a.pot !== lastPot) {
+        lastPot = a.pot;
+        if (a.bonus) {
+          status.innerHTML = `${ICONS.gift} Bonus round!`;
+        } else {
+          status.innerHTML = `${ICONS.dice} Drawing Pot ${a.pot}`;
         }
+        setTimeout(() => { if (!cancelled) showTeam(); }, 1200);
+        return;
+      }
 
-        teamChips.forEach(chip => {
-          chip.classList.remove('selected');
-          chip.classList.add('assigned');
-        });
+      showTeam();
 
-        const bonusLabel = a.bonus ? ` ${ICONS.gift} BONUS!` : '';
-        status.innerHTML = `${a.flag_emoji} ${a.team} → <strong>${a.participant}</strong>${bonusLabel}`;
-        index++;
-        setTimeout(next, 3000);
-      }, 2000);
+      function showTeam() {
+        const teamChips = Array.from(document.querySelectorAll('.team-pool .team-chip')).filter(
+          chip => chip.dataset.team === a.team
+        );
+        teamChips.forEach(chip => chip.classList.add('selected'));
+
+        status.innerHTML = `${ICONS.dice} Drawing... <strong>${a.flag_emoji} ${a.team}</strong>`;
+
+        setTimeout(() => {
+          if (cancelled) return;
+          const card = document.querySelector(`.participant-card[data-participant="${CSS.escape(a.participant)}"]`);
+          if (card) {
+            const potTag = a.pot ? ` <span class="badge pot">P${a.pot}</span>` : '';
+            const bonusTag = a.bonus ? ' <span class="badge bonus">BONUS</span>' : '';
+            card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}${potTag}${bonusTag}</span>`;
+            card.classList.add('revealed');
+          }
+
+          teamChips.forEach(chip => {
+            chip.classList.remove('selected');
+            chip.classList.add('assigned');
+          });
+
+          const bonusLabel = a.bonus ? ` ${ICONS.gift} BONUS!` : '';
+          status.innerHTML = `${a.flag_emoji} ${a.team} → <strong>${a.participant}</strong>${bonusLabel}`;
+          index++;
+          setTimeout(next, 3000);
+        }, 2000);
+      }
     }
 
     setTimeout(next, 1000);
@@ -273,9 +353,9 @@
               ${p.alive_count}/${p.team_count} alive
             </span>
           </div>
-          <div>${playerTeams.map(t => `
+          <div>${playerTeams.sort((a, b) => (a.pot ?? 99) - (b.pot ?? 99)).map(t => `
             <span class="team-chip ${t.status === 'eliminated' ? 'eliminated' : ''}">
-              ${t.flag_emoji} ${t.name} (${t.group_letter})${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
+              ${t.flag_emoji} ${t.name} (${t.group_letter})${t.pot ? ` <span class="badge pot">P${t.pot}</span>` : ''}${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
             </span>
           `).join('')}</div>
         </div>

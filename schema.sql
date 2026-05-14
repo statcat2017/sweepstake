@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS participant_teams (
   participant_id INTEGER NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
   team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   bonus INTEGER NOT NULL DEFAULT 0,
+  pot INTEGER,
   UNIQUE(team_id),
   UNIQUE(participant_id, team_id)
 );

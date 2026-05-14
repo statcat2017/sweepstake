@@ -17,6 +17,7 @@ npm run db:seed      # load 48 WC2026 teams
 npm run db:migrate   # run schema-migration.sql
 npm run db:migrate-fifa-rank  # apply fifa_rank column + data
 npm run db:migrate-draw-fix   # catch-up for partial migration (winner_team_id + fifa_rank + ranks)
+npm run db:migrate-pot        # add pot column to participant_teams
 npm run db:reset     # DROP ALL tables (incl. knockout_picks)
 npm run smoke        # run test/smoke.sh against http://localhost:8787
 ```
@@ -60,7 +61,14 @@ Smoke test expects dev server running at `http://localhost:8787`. Default passwo
 
 ## Draw algorithm
 
-The draw uses FIFA rankings (April 2026). Teams are sorted by rank ascending. The top `participants * floor(48 / participants)` teams form the main pool (shuffled, distributed round-robin). The remaining `48 % participants` teams (lowest-ranked) form the bonus pool, each randomly assigned to a participant with independent draws.
+The draw uses FIFA rankings (April 2026). Teams are sorted by rank ascending and split into strength pots based on participant count:
+
+- `potCount = floor(teamCount / participantCount)` — each pot has exactly `participantCount` teams
+- For each pot, teams and players are shuffled independently, then paired one-to-one
+- Remaining `teamCount % participantCount` lowest-ranked teams become bonus teams, assigned to distinct random participants (without replacement)
+- Each assignment stores `pot` (1-based for normal teams, NULL for bonus) and `bonus` (0 or 1)
+
+This guarantees every participant gets exactly one team from each strength band.
 
 ## Bracket (2026 48-team format)
 
@@ -78,5 +86,5 @@ Only test is `test/smoke.sh` — a bash script that exercises the full lifecycle
 
 - No `tsconfig.json`, no ESLint, no Prettier, no CI. TypeScript is validated only at wrangler runtime.
 - `data/` and `test-results/` are gitignored.
-- Schema migrations go in `schema-migration.sql` and are applied via `npm run db:migrate`.
+- Schema migrations go in `schema-migration.sql` and are applied via `npm run db:migrate`. The `pot` column was added via `schema-migration-pot.sql` (`npm run db:migrate-pot`).
 - The frontend SPA polls `GET /api/participants` and `GET /api/standings` — no client-side routing.

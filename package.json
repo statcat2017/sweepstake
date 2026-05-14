@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler pages dev public --d1 DB=sweepstake-db",
+    "dev": "wrangler pages dev public",
     "deploy": "wrangler pages deploy public --branch main",
     "db:init": "wrangler d1 execute sweepstake-db --file=./schema.sql",
     "db:seed": "wrangler d1 execute sweepstake-db --file=./seed.sql",
@@ -11,6 +11,7 @@
     "db:migrate": "wrangler d1 execute sweepstake-db --file=./schema-migration.sql",
     "db:migrate-fifa-rank": "wrangler d1 execute sweepstake-db --file=./schema-migration-fifa-rank.sql",
     "db:migrate-draw-fix": "wrangler d1 execute sweepstake-db --file=./schema-migration-draw-fix.sql",
+    "db:migrate-pot": "wrangler d1 execute sweepstake-db --file=./schema-migration-pot.sql",
     "smoke": "bash test/smoke.sh"
   },
   "devDependencies": {
