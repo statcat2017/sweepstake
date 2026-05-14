@@ -14,6 +14,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   const db = getDb(context.env);
 
   if (context.request.method === "POST") {
+    const auth = requireAuth(context.request, context.env);
+    if (auth) return auth;
     return handleDraw(db);
   }
 
@@ -98,9 +100,14 @@ async function handleDraw(db: D1Database): Promise<Response> {
 
   const insertStmt = db.prepare("INSERT OR IGNORE INTO participant_teams (participant_id, team_id, bonus, pot) VALUES (?, ?, ?, ?)");
 
-  await db.batch(
-    assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id, a.bonus, a.pot))
-  );
+  try {
+    await db.batch(
+      assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id, a.bonus, a.pot))
+    );
+  } catch (err) {
+    await db.prepare("UPDATE sweepstake SET drawn = 0, updated_at = datetime('now') WHERE id = 1").run();
+    return Response.json({ error: "Draw failed: unable to assign teams." }, { status: 500 });
+  }
 
   const result = await db.prepare(`
     SELECT p.name as participant, t.name as team, t.group_letter, t.flag_emoji, pt.bonus, pt.pot

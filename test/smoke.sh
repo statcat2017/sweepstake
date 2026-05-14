@@ -65,6 +65,7 @@ check200 "GET /api/matches/knockout" "$BASE/api/matches/knockout"
 echo ""
 echo "--- 2. Auth: mutating endpoints reject without password ---"
 check401 "POST /api/participants"   -X POST "$BASE/api/participants"   -H "$JSON" -d '{"name":"noauth"}'
+check401 "POST /api/draw"           -X POST "$BASE/api/draw"
 check401 "DELETE /api/draw"         -X DELETE "$BASE/api/draw"
 check401 "PUT /api/matches"         -X PUT "$BASE/api/matches"         -H "$JSON" -d '{"id":1,"home_score":9}'
 check401 "POST /api/matches/seed"   -X POST "$BASE/api/matches/seed"
@@ -119,7 +120,7 @@ CREATED_PARTICIPANTS="$ALICE_ID $CAROL_ID $DAVE_ID $EVE_ID $FRANK_ID"
 
 echo ""
 echo "--- 4. Draw flow ---"
-check200 "Run draw" -X POST "$BASE/api/draw"
+check200 "Run draw" -X POST "$BASE/api/draw" -H "$AUTH"
 DRAW_INFO=$(curl -sf "$BASE/api/standings" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
