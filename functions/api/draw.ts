@@ -114,7 +114,7 @@ async function handleDraw(db: D1Database): Promise<Response> {
     FROM participant_teams pt
     JOIN participants p ON p.id = pt.participant_id
     JOIN teams t ON t.id = pt.team_id
-    ORDER BY pt.bonus ASC, pt.pot ASC, RANDOM()
+    ORDER BY pt.bonus DESC, pt.pot DESC, RANDOM()
   `).all();
 
   return Response.json({
