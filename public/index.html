@@ -72,22 +72,23 @@
     }
 
     let potsHtml = '';
-    for (let i = 0; i < pots.length; i++) {
-      potsHtml += `<div class="pot-section">
-        <div class="pot-header">Pot ${i + 1}</div>
-        <div class="team-pool">
-          ${pots[i].map(t => `
-            <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
-          `).join('')}
-        </div>
-      </div>`;
-    }
 
     if (bonusCount > 0) {
       potsHtml += `<div class="pot-section">
         <div class="pot-header">Bonus</div>
         <div class="team-pool">
           ${bonusTeams.map(t => `
+            <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+
+    for (let i = pots.length - 1; i >= 0; i--) {
+      potsHtml += `<div class="pot-section">
+        <div class="pot-header">Pot ${i + 1}</div>
+        <div class="team-pool">
+          ${pots[i].map(t => `
             <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
           `).join('')}
         </div>
