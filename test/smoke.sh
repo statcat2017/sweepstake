@@ -169,8 +169,8 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-# Second draw should be rejected
-check "Draw locked" 409 -X POST "$BASE/api/draw"
+# Second draw should be rejected (even with auth)
+check "Draw locked" 409 -X POST "$BASE/api/draw" -H "$AUTH"
 
 echo ""
 echo "--- 5. Match seeding & scores ---"
