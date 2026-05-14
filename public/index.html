@@ -172,14 +172,14 @@
     const status = document.createElement('div');
     status.id = 'draw-status';
     status.className = 'draw-status';
-    document.querySelector('.draw-layout').after(status);
+    document.querySelector('.draw-pool h2').after(status);
 
     const skipBtn = document.createElement('button');
     skipBtn.id = 'skip-draw-btn';
     skipBtn.className = 'btn outline';
     skipBtn.textContent = 'Skip';
     skipBtn.style.cssText = 'display:block;margin:12px auto 0';
-    status.after(skipBtn);
+    document.querySelector('.draw-pool').appendChild(skipBtn);
 
     let index = 0;
     let cancelled = false;
