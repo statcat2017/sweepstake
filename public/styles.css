@@ -324,8 +324,61 @@ tr.status-third { background: #fefce8; }
 .draw-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 24px;
+  gap: 16px;
+  margin-top: 16px;
+  font-size: 13px;
+  align-items: start;
+}
+
+.draw-layout h1 {
+  font-size: 20px;
+  margin-bottom: 0;
+}
+
+.draw-layout h2 {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.draw-layout h3 {
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
+.draw-layout .draw-participants h2,
+.draw-layout .draw-pool h2 {
+  margin-bottom: 6px;
+}
+
+.draw-layout .btn {
+  font-size: 12px;
+  padding: 8px 14px;
+  min-height: 32px;
+}
+
+.draw-layout .team-chip {
+  font-size: 11px;
+  padding: 5px 9px;
+  margin: 2px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+}
+
+.draw-layout .badge {
+  font-size: 10px;
+  padding: 3px 7px;
+}
+
+.team-pool .team-chip.selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+  animation: pulse 1s ease-in-out infinite;
+  transform: scale(1.05);
+}
+
+.team-pool .team-chip.assigned {
+  opacity: 0.3;
+  text-decoration: line-through;
 }
 
 .draw-participants .assigned-teams {
@@ -340,24 +393,12 @@ tr.status-third { background: #fefce8; }
 .team-pool {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   align-content: flex-start;
 }
 
 .team-pool .team-chip {
   transition: all 0.3s ease;
-}
-
-.team-pool .team-chip.selected {
-  border: 2px solid var(--blue);
-  box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
-  animation: pulse 1s ease-in-out infinite;
-  transform: scale(1.05);
-}
-
-.team-pool .team-chip.assigned {
-  opacity: 0.3;
-  text-decoration: line-through;
 }
 
 .participant-card.revealed {
@@ -367,24 +408,24 @@ tr.status-third { background: #fefce8; }
 
 .draw-status {
   text-align: center;
-  font-size: 20px;
-  padding: 16px;
+  font-size: 14px;
+  padding: 10px;
   font-weight: 700;
   color: var(--gray-700);
 }
 
 .pot-section {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .pot-header {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--gray-500);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
-  padding-bottom: 4px;
+  margin-bottom: 4px;
+  padding-bottom: 3px;
   border-bottom: 1px solid var(--gray-200);
 }
 
