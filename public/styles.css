@@ -132,6 +132,7 @@ label {
 .badge.alive { background: #dcfce7; color: var(--green); }
 .badge.eliminated { background: #fee2e2; color: var(--red); }
 .badge.bonus { background: #fef3c7; color: var(--amber); }
+.badge.pot { background: #dbeafe; color: var(--blue); }
 
 table {
   width: 100%;
@@ -370,6 +371,21 @@ tr.status-third { background: #fefce8; }
   padding: 16px;
   font-weight: 700;
   color: var(--gray-700);
+}
+
+.pot-section {
+  margin-bottom: 16px;
+}
+
+.pot-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--gray-200);
 }
 
 @keyframes pulse {

@@ -17,7 +17,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   const teamsData = await db.prepare(`
     SELECT
       t.id, t.name, t.group_letter, t.flag_emoji, t.eliminated,
-      pt.participant_id, pt.bonus
+      pt.participant_id, pt.bonus, pt.pot
     FROM teams t
     LEFT JOIN participant_teams pt ON pt.team_id = t.id
     ORDER BY t.group_letter, t.name

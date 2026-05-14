@@ -130,17 +130,41 @@ print(f'drawn={d[\"drawn\"]}, participants={parts}, teams_assigned={teams}')
 echo "  $DRAW_INFO"
 
 # Verify bonus pool sizing: 48 % 5 = 3 bonus teams with 5 participants
-BONUS_COUNT=$(curl -sf "$BASE/api/standings" | python3 -c "
+# Also verify pot field and distinct bonus recipients
+DRAW_STRUCT=$(curl -sf "$BASE/api/standings" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-bonus = sum(t.get('bonus', 0) for t in d.get('teams', []))
-print(bonus)
+bonus_teams = [t for t in d.get('teams', []) if t.get('bonus') == 1]
+pot_teams = [t for t in d.get('teams', []) if t.get('pot') is not None]
+pot_count = max((t['pot'] for t in pot_teams), default=0)
+print(f'potCount={pot_count}, bonus_teams={len(bonus_teams)}, pot_teams={len(pot_teams)}, distinct_bonus_recipients={len(set(t[\"participant_id\"] for t in bonus_teams))}')
 " 2>/dev/null)
+echo "  $DRAW_STRUCT"
+
+BONUS_COUNT=$(echo "$DRAW_STRUCT" | python3 -c "import sys; s=sys.stdin.read().strip(); print(s.split('bonus_teams=')[1].split(',')[0])" 2>/dev/null)
 if [ "$BONUS_COUNT" = "3" ]; then
   echo "  PASS bonus teams: $BONUS_COUNT (expected 3 for 5 participants)"
   PASS=$((PASS + 1))
 else
   echo "  FAIL bonus teams: $BONUS_COUNT (expected 3 for 5 participants)"
+  FAIL=$((FAIL + 1))
+fi
+
+DISTINCT_BONUS=$(echo "$DRAW_STRUCT" | python3 -c "import sys; s=sys.stdin.read().strip(); print(s.split('distinct_bonus_recipients=')[1].strip())" 2>/dev/null)
+if [ "$DISTINCT_BONUS" = "3" ]; then
+  echo "  PASS distinct bonus recipients: $DISTINCT_BONUS (expected 3)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL distinct bonus recipients: $DISTINCT_BONUS (expected 3)"
+  FAIL=$((FAIL + 1))
+fi
+
+POT_COUNT=$(echo "$DRAW_STRUCT" | python3 -c "import sys; s=sys.stdin.read().strip(); print(s.split('potCount=')[1].split(',')[0])" 2>/dev/null)
+if [ "$POT_COUNT" = "9" ]; then
+  echo "  PASS pot count: $POT_COUNT (expected 9 for 5 participants)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL pot count: $POT_COUNT (expected 9 for 5 participants)"
   FAIL=$((FAIL + 1))
 fi
 

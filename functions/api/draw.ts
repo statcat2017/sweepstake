@@ -1,6 +1,15 @@
 import { getDb, acquireDrawLock } from "./db";
 import { requireAuth } from "./auth";
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
   const db = getDb(context.env);
 
@@ -31,7 +40,10 @@ async function handleDraw(db: D1Database): Promise<Response> {
 
   const teams = await db.prepare("SELECT id FROM teams ORDER BY fifa_rank ASC").all<{ id: number }>();
 
-  if (teams.results.length < participants.results.length) {
+  const playerCount = participants.results.length;
+  const teamCount = teams.results.length;
+
+  if (playerCount > teamCount) {
     return Response.json({ error: "Not enough teams for all participants." }, { status: 400 });
   }
 
@@ -39,47 +51,72 @@ async function handleDraw(db: D1Database): Promise<Response> {
     return Response.json({ error: "Draw has already been locked. Reset it first." }, { status: 409 });
   }
 
-  const teamsPerParticipant = Math.floor(teams.results.length / participants.results.length);
-  const mainPoolCount = participants.results.length * teamsPerParticipant;
+  const potCount = Math.floor(teamCount / playerCount);
+  const mainPoolCount = potCount * playerCount;
+  const bonusCount = teamCount % playerCount;
 
-  // Main pool: best teams split evenly
-  const mainPool = [...teams.results.slice(0, mainPoolCount)].sort(() => Math.random() - 0.5);
-  // Bonus pool: lowest-ranked teams
-  const bonusPool = teams.results.slice(mainPoolCount);
+  // Split sorted teams into strength pots
+  const mainTeams = teams.results.slice(0, mainPoolCount);
+  const bonusTeams = teams.results.slice(mainPoolCount);
 
-  const assignments: Array<{ participant_id: number; team_id: number; bonus: number }> = [];
-  let teamIndex = 0;
+  const pots: { id: number }[][] = [];
+  for (let i = 0; i < potCount; i++) {
+    const start = i * playerCount;
+    pots.push(mainTeams.slice(start, start + playerCount));
+  }
 
-  for (const participant of participants.results) {
-    for (let t = 0; t < teamsPerParticipant; t++) {
-      if (teamIndex < mainPool.length) {
-        assignments.push({ participant_id: participant.id, team_id: mainPool[teamIndex].id, bonus: 0 });
-        teamIndex++;
-      }
+  const assignments: Array<{ participant_id: number; team_id: number; bonus: number; pot: number | null }> = [];
+
+  // Assign one team per pot to each participant
+  for (let potIndex = 0; potIndex < pots.length; potIndex++) {
+    const shuffledTeams = shuffle(pots[potIndex]);
+    const shuffledPlayers = shuffle(participants.results);
+
+    for (let i = 0; i < playerCount; i++) {
+      assignments.push({
+        participant_id: shuffledPlayers[i].id,
+        team_id: shuffledTeams[i].id,
+        bonus: 0,
+        pot: potIndex + 1
+      });
     }
   }
 
-  // Bonus round: each bonus team goes to a random participant
-  for (const bonusTeam of bonusPool) {
-    const lucky = participants.results[Math.floor(Math.random() * participants.results.length)];
-    assignments.push({ participant_id: lucky.id, team_id: bonusTeam.id, bonus: 1 });
+  // Bonus round: lowest-ranked teams to distinct random participants
+  if (bonusCount > 0) {
+    const bonusRecipients = shuffle(participants.results).slice(0, bonusCount);
+
+    for (let i = 0; i < bonusTeams.length; i++) {
+      assignments.push({
+        participant_id: bonusRecipients[i].id,
+        team_id: bonusTeams[i].id,
+        bonus: 1,
+        pot: null
+      });
+    }
   }
 
-  const insertStmt = db.prepare("INSERT OR IGNORE INTO participant_teams (participant_id, team_id, bonus) VALUES (?, ?, ?)");
+  const insertStmt = db.prepare("INSERT OR IGNORE INTO participant_teams (participant_id, team_id, bonus, pot) VALUES (?, ?, ?, ?)");
 
   await db.batch(
-    assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id, a.bonus))
+    assignments.map((a) => insertStmt.bind(a.participant_id, a.team_id, a.bonus, a.pot))
   );
 
   const result = await db.prepare(`
-    SELECT p.name as participant, t.name as team, t.group_letter, t.flag_emoji, pt.bonus
+    SELECT p.name as participant, t.name as team, t.group_letter, t.flag_emoji, pt.bonus, pt.pot
     FROM participant_teams pt
     JOIN participants p ON p.id = pt.participant_id
     JOIN teams t ON t.id = pt.team_id
-    ORDER BY pt.bonus ASC, RANDOM()
+    ORDER BY pt.bonus ASC, pt.pot ASC, RANDOM()
   `).all();
 
-  return Response.json({ drawn: true, participants: result.results });
+  return Response.json({
+    drawn: true,
+    participantCount: playerCount,
+    potCount,
+    bonusCount,
+    participants: result.results
+  });
 }
 
 async function handleReset(db: D1Database): Promise<Response> {
