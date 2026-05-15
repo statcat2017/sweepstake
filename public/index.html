@@ -166,6 +166,10 @@
   function animateDraw(assignments, potCount, bonusCount) {
     if (!assignments || assignments.length === 0) return;
 
+    const participantNames = [...new Set(assignments.map(a => a.participant))];
+    const spinDuration = 8000;
+    const revealPause = 2000;
+
     const btnArea = document.querySelector('#app > div[style*="text-align:center"]');
     if (btnArea) btnArea.remove();
 
@@ -249,9 +253,14 @@
         );
         teamChips.forEach(chip => chip.classList.add('selected'));
 
-        status.innerHTML = `${ICONS.dice} Drawing... <strong>${a.flag_emoji} ${a.team}</strong>`;
+        const eligibleNames = participantNames.filter(p =>
+          !assignments.slice(0, index).some(
+            prev => prev.participant === p && prev.pot === a.pot && prev.bonus === a.bonus
+          )
+        );
+        const spinStart = Date.now();
 
-        setTimeout(() => {
+        function reveal() {
           if (cancelled) return;
           const card = document.querySelector(`.participant-card[data-participant="${CSS.escape(a.participant)}"]`);
           if (card) {
@@ -269,8 +278,31 @@
           const bonusLabel = a.bonus ? ` ${ICONS.gift} BONUS!` : '';
           status.innerHTML = `${a.flag_emoji} ${a.team} → <strong>${a.participant}</strong>${bonusLabel}`;
           index++;
-          setTimeout(next, 3000);
-        }, 2000);
+          setTimeout(next, revealPause);
+        }
+
+        function spinTick() {
+          if (cancelled) return;
+
+          const elapsed = Date.now() - spinStart;
+          if (elapsed >= spinDuration || eligibleNames.length <= 1) {
+            reveal();
+            return;
+          }
+
+          const randomName = eligibleNames[Math.floor(Math.random() * eligibleNames.length)];
+          status.innerHTML = `${ICONS.dice} Drawing... <strong>${a.flag_emoji} ${a.team}</strong> → <strong>${randomName}</strong>`;
+
+          const progress = elapsed / spinDuration;
+          const nextDelay = 40 + (progress * progress * 460);
+          setTimeout(spinTick, nextDelay);
+        }
+
+        if (eligibleNames.length <= 1) {
+          reveal();
+          return;
+        }
+        spinTick();
       }
     }
 
