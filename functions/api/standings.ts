@@ -194,6 +194,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     const awayOwner = teamParticipantMap[m.away_team_id];
 
     if (!homeOwner || !awayOwner) continue;
+    if (homeOwner.id === awayOwner.id) continue;
 
     if (m.played) {
       const homeWin = m.home_score > m.away_score;
