@@ -30,21 +30,47 @@
   };
   let allTeams = [];
 
-  async function load() {
-    const [partRes, teamsRes] = await Promise.all([
-      fetch('/api/participants'),
-      fetch('/api/teams')
-    ]);
-    const participants = await partRes.json();
-    const teamsData = await teamsRes.json();
-    allTeams = teamsData.teams || [];
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[ch]));
+  }
 
-    if (!participants.drawn) {
-      showPreDraw(participants.participants);
-    } else {
-      const standingsRes = await fetch('/api/standings');
-      const standings = await standingsRes.json();
-      renderStandings(standings, participants);
+  const h = escapeHtml;
+
+  async function readJson(res, label) {
+    if (!res.ok) throw new Error(`${label} failed (${res.status})`);
+    return res.json();
+  }
+
+  function showLoadError(error) {
+    const app = document.getElementById('app');
+    app.innerHTML = `<div class="card empty-state"><h2>Could not load standings</h2><p>${h(error.message || 'Please refresh and try again.')}</p></div>`;
+  }
+
+  async function load() {
+    try {
+      const [partRes, teamsRes] = await Promise.all([
+        fetch('/api/participants'),
+        fetch('/api/teams')
+      ]);
+      const participants = await readJson(partRes, 'Participants');
+      const teamsData = await readJson(teamsRes, 'Teams');
+      allTeams = teamsData.teams || [];
+
+      if (!participants.drawn) {
+        showPreDraw(participants.participants);
+      } else {
+        const standingsRes = await fetch('/api/standings');
+        const standings = await readJson(standingsRes, 'Standings');
+        renderStandings(standings, participants);
+      }
+    } catch (error) {
+      showLoadError(error);
     }
   }
 
@@ -77,7 +103,7 @@
         <div class="pot-header">Pot ${i + 1}</div>
         <div class="team-pool">
           ${pots[i].map(t => `
-            <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
+            <span class="team-chip" data-team="${h(t.name)}">${h(t.flag_emoji)} ${h(t.name)} (${h(t.group_letter)})</span>
           `).join('')}
         </div>
       </div>`;
@@ -88,7 +114,7 @@
         <div class="pot-header">Bonus</div>
         <div class="team-pool">
           ${bonusTeams.map(t => `
-            <span class="team-chip" data-team="${t.name.replace(/"/g, '&quot;')}">${t.flag_emoji} ${t.name} (${t.group_letter})</span>
+            <span class="team-chip" data-team="${h(t.name)}">${h(t.flag_emoji)} ${h(t.name)} (${h(t.group_letter)})</span>
           `).join('')}
         </div>
       </div>`;
@@ -99,8 +125,8 @@
         <div class="draw-participants">
           <h2>Participants (${playerCount})</h2>
           ${participantList.map(p => `
-            <div class="participant-card" data-participant="${p.name.replace(/"/g, '&quot;')}">
-              <h3>${p.name}</h3>
+            <div class="participant-card" data-participant="${h(p.name)}">
+              <h3>${h(p.name)}</h3>
               <div class="assigned-teams"></div>
             </div>
           `).join('')}
@@ -210,7 +236,7 @@
         if (card) {
           const potTag = a.pot ? ` <span class="badge pot">P${a.pot}</span>` : '';
           const bonusTag = a.bonus ? ' <span class="badge bonus">BONUS</span>' : '';
-          card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}${potTag}${bonusTag}</span>`;
+          card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${h(a.flag_emoji)} ${h(a.team)}${potTag}${bonusTag}</span>`;
           card.classList.add('revealed');
         }
         index++;
@@ -266,7 +292,7 @@
           if (card) {
             const potTag = a.pot ? ` <span class="badge pot">P${a.pot}</span>` : '';
             const bonusTag = a.bonus ? ' <span class="badge bonus">BONUS</span>' : '';
-            card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${a.flag_emoji} ${a.team}${potTag}${bonusTag}</span>`;
+            card.querySelector('.assigned-teams').innerHTML += `<span class="team-chip">${h(a.flag_emoji)} ${h(a.team)}${potTag}${bonusTag}</span>`;
             card.classList.add('revealed');
           }
 
@@ -276,7 +302,7 @@
           });
 
           const bonusLabel = a.bonus ? ` ${ICONS.gift} BONUS!` : '';
-          status.innerHTML = `${a.flag_emoji} ${a.team} → <strong>${a.participant}</strong>${bonusLabel}`;
+          status.innerHTML = `${h(a.flag_emoji)} ${h(a.team)} -> <strong>${h(a.participant)}</strong>${bonusLabel}`;
           index++;
           setTimeout(next, revealPause);
         }
@@ -291,7 +317,7 @@
           }
 
           const randomName = eligibleNames[Math.floor(Math.random() * eligibleNames.length)];
-          status.innerHTML = `${ICONS.dice} Drawing... <strong>${a.flag_emoji} ${a.team}</strong> → <strong>${randomName}</strong>`;
+          status.innerHTML = `${ICONS.dice} Drawing... <strong>${h(a.flag_emoji)} ${h(a.team)}</strong> -> <strong>${h(randomName)}</strong>`;
 
           const progress = elapsed / spinDuration;
           const nextDelay = 40 + (progress * progress * 460);
@@ -370,11 +396,104 @@
           </div>
           ${standings.mostConceded && standings.mostConceded.goals_against > 0 ? `
           <div class="summary-stat" style="text-align:center">
-            <div class="value">${standings.mostConceded.flag_emoji} ${standings.mostConceded.goals_against}</div>
-            <div class="label">Most Conceded (${standings.mostConceded.name})</div>
+            <div class="value">${h(standings.mostConceded.flag_emoji)} ${standings.mostConceded.goals_against}</div>
+            <div class="label">Most Conceded (${h(standings.mostConceded.name)})</div>
           </div>` : ''}
         </div>
       </div>
+
+      ${standings.headToHead && standings.headToHead.table.length > 0 ? `
+      <h2>Head to Head</h2>
+      <div class="h2h-layout">
+        <div class="h2h-table">
+          <table class="standings-table">
+            <colgroup>
+              <col style="width:30px">
+              <col style="width:160px">
+              <col style="width:36px">
+              <col style="width:36px">
+              <col style="width:36px">
+              <col style="width:36px">
+              <col style="width:40px">
+              <col style="width:45px">
+              <col style="width:40px">
+            </colgroup>
+            <thead><tr>
+              <th class="pos col-num">#</th>
+              <th>Player</th>
+              <th class="col-num">Pld</th>
+              <th class="col-num">W</th>
+              <th class="col-num">D</th>
+              <th class="col-num">L</th>
+              <th class="col-num">GD</th>
+              <th class="col-num col-pts">Pts</th>
+              <th class="col-num"></th>
+            </tr></thead>
+            <tbody>
+              ${standings.headToHead.table.map((r) => {
+                const gf = r.goals_for ?? 0;
+                const ga = r.goals_against ?? 0;
+                const pts = r.points ?? 0;
+                const pld = r.played ?? 0;
+                const gd = gf - ga;
+                const gdStr = gd > 0 ? '+' + gd : String(gd);
+                const rowClass = r.position === 1 ? 'status-qualified' : '';
+                return '<tr class="' + rowClass + '">' +
+                  '<td class="pos col-num">' + r.position + '</td>' +
+                  '<td>' + h(r.name) + '</td>' +
+                  '<td class="col-num">' + pld + '</td>' +
+                  '<td class="col-num">' + r.won + '</td>' +
+                  '<td class="col-num">' + r.drawn + '</td>' +
+                  '<td class="col-num">' + r.lost + '</td>' +
+                  '<td class="col-num">' + gdStr + '</td>' +
+                  '<td class="col-num col-pts">' + pts + '</td>' +
+                  '<td class="col-num">' + (r.position === 1 ? '<span class="badge alive">TOP</span>' : '') + '</td>' +
+                  '</tr>';
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="h2h-fixtures">
+          <div class="h2h-section">
+            <h3>Upcoming Fixtures</h3>
+            ${(standings.headToHead.upcomingFixtures || []).length === 0 ? '<p style="font-size:13px;margin-bottom:0">No upcoming fixtures</p>' :
+              (standings.headToHead.upcomingFixtures || []).slice(0, 6).map((f) => {
+                return '<div class="fixture-row">' +
+                  '<span class="fixture-time">' + formatUTC(f.kickoff_at) + '</span>' +
+                  '<span class="fixture-home">' + h(f.home_participant) + '</span>' +
+                  '<span class="fixture-score">vs</span>' +
+                  '<span class="fixture-away">' + h(f.away_participant) + '</span>' +
+                '</div>' +
+                '<div class="fixture-row fixture-teams">' +
+                  '<span class="fixture-time"></span>' +
+                  '<span class="fixture-home">' + h(f.home_flag) + ' ' + h(f.home_team) + '</span>' +
+                  '<span class="fixture-score"></span>' +
+                  '<span class="fixture-away">' + h(f.away_flag) + ' ' + h(f.away_team) + '</span>' +
+                '</div>';
+              }).join('')}
+          </div>
+          <div class="h2h-section">
+            <h3>Recent Results</h3>
+            ${(standings.headToHead.recentResults || []).length === 0 ? '<p style="font-size:13px;margin-bottom:0">No results yet</p>' :
+              (standings.headToHead.recentResults || []).slice(0, 6).map((f) => {
+                return '<div class="fixture-row">' +
+                  '<span class="fixture-time">' + formatUTC(f.kickoff_at) + '</span>' +
+                  '<span class="fixture-home">' + h(f.home_participant) + '</span>' +
+                  '<span class="fixture-score">' + f.home_score + '–' + f.away_score + '</span>' +
+                  '<span class="fixture-away">' + h(f.away_participant) + '</span>' +
+                '</div>' +
+                '<div class="fixture-row fixture-teams">' +
+                  '<span class="fixture-time"></span>' +
+                  '<span class="fixture-home">' + h(f.home_flag) + ' ' + h(f.home_team) + '</span>' +
+                  '<span class="fixture-score"></span>' +
+                  '<span class="fixture-away">' + h(f.away_flag) + ' ' + h(f.away_team) + '</span>' +
+                '</div>';
+              }).join('')}
+          </div>
+        </div>
+      </div>
+      ` : ''}
 
       <h2>Participants</h2>
       <div class="grid">
@@ -384,7 +503,7 @@
       const playerTeams = standings.teams.filter(t => t.participant_id == p.id);
       html += `
         <div class="participant-card">
-          <h3>${p.name}</h3>
+          <h3>${h(p.name)}</h3>
           <div style="margin-bottom:6px">
             <span class="badge ${p.alive_count > 0 ? 'alive' : 'eliminated'}">
               ${p.alive_count}/${p.team_count} alive
@@ -392,7 +511,7 @@
           </div>
           <div>${playerTeams.sort((a, b) => (a.pot ?? 99) - (b.pot ?? 99)).map(t => `
             <span class="team-chip ${t.status === 'eliminated' ? 'eliminated' : ''}">
-              ${t.flag_emoji} ${t.name} (${t.group_letter})${t.pot ? ` <span class="badge pot">P${t.pot}</span>` : ''}${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
+              ${h(t.flag_emoji)} ${h(t.name)} (${h(t.group_letter)})${t.pot ? ` <span class="badge pot">P${t.pot}</span>` : ''}${t.bonus ? ' <span class="badge bonus">BONUS</span>' : ''}
             </span>
           `).join('')}</div>
         </div>
@@ -404,7 +523,7 @@
     for (const [group, rows] of Object.entries(grouped)) {
       html += `
         <div class="group-section">
-          <h3>Group ${group}</h3>
+          <h3>Group ${h(group)}</h3>
           <div class="group-layout">
           <table class="standings-table">
             <colgroup>
@@ -442,7 +561,7 @@
         const statusBadge = zeroHero ? '<span class="badge zero-hero-badge">' + ICONS.battery + '</span>' : (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : (r.status === 'eliminated' ? '<span class="badge eliminated">OUT</span>' : (r.status === 'third' ? '<span class="badge third">TBD</span>' : '<span class="badge alive">LIVE</span>')));
         html += `<tr class="${statusClass} ${zeroHero ? 'zero-hero' : ''}">
           <td class="pos col-num">${r.position ?? '-'}</td>
-          <td>${r.flag_emoji} ${r.team_name}</td>
+          <td>${h(r.flag_emoji)} ${h(r.team_name)}</td>
           <td class="col-num">${pld}</td>
           <td class="col-num">${gf}</td>
           <td class="col-num">${ga}</td>
@@ -462,9 +581,9 @@
           const score = f.played ? `${f.home_score ?? 0}–${f.away_score ?? 0}` : 'vs';
           html += `<div class="fixture-row">
             <span class="fixture-time">${formatUTC(f.kickoff_at)}</span>
-            <span class="fixture-home">${f.home_flag || ''} ${f.home_team || '?'}</span>
+            <span class="fixture-home">${h(f.home_flag || '')} ${h(f.home_team || '?')}</span>
             <span class="fixture-score">${score}</span>
-            <span class="fixture-away">${f.away_flag || ''} ${f.away_team || '?'}</span>
+            <span class="fixture-away">${h(f.away_flag || '')} ${h(f.away_team || '?')}</span>
           </div>`;
         }
         html += `</div>`;
@@ -512,7 +631,7 @@
         const badge = zeroHero ? '<span class="badge zero-hero-badge">' + ICONS.battery + '</span>' : (isDefinitive ? (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : '<span class="badge eliminated">OUT</span>') : '<span class="badge third">TBD</span>');
         html += `<tr class="${rowClass} ${zeroHero ? 'zero-hero' : ''}">
           <td class="pos col-num">${r.third_rank}</td>
-          <td>${r.flag_emoji} ${r.team_name} (${r.group_letter})</td>
+          <td>${h(r.flag_emoji)} ${h(r.team_name)} (${h(r.group_letter)})</td>
           <td class="col-num">${pld}</td>
           <td class="col-num">${gf}</td>
           <td class="col-num">${ga}</td>
@@ -571,8 +690,8 @@
         const awayScore = m.away_score != null ? m.away_score : '-';
         const homeWon = m.home_score != null && m.away_score != null && m.home_score > m.away_score;
         const awayWon = m.home_score != null && m.away_score != null && m.away_score > m.home_score;
-        const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : (m.match_label || 'TBD');
-        const awayLabel = m.away_team ? `${m.away_flag || ''} ${m.away_team}` : (m.match_label || 'TBD');
+        const homeLabel = m.home_team ? `${h(m.home_flag || '')} ${h(m.home_team)}` : h(m.match_label || 'TBD');
+        const awayLabel = m.away_team ? `${h(m.away_flag || '')} ${h(m.away_team)}` : h(m.match_label || 'TBD');
 
         bracketHtml += `<div class="ko-match" style="grid-column:${p.col};grid-row:${p.row}/span ${p.span}">
           <span class="ko-team${homeWon ? ' winner' : ''}">${homeLabel}</span>
