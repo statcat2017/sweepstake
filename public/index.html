@@ -4,12 +4,105 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>World Cup 2026 Sweepstake</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css" id="theme-css">
+  <link rel="stylesheet" href="/1-brutalist.css" id="css-brutalist" disabled>
+  <link rel="stylesheet" href="/2-retro-futuristic.css" id="css-retro" disabled>
+  <link rel="stylesheet" href="/3-luxury-editorial.css" id="css-luxury" disabled>
+  <link rel="stylesheet" href="/4-stadium-atmosphere.css" id="css-organic" disabled>
+  <style>
+    .theme-switcher {
+      position: relative;
+      margin-left: auto;
+    }
+    .theme-toggle {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: inherit;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .theme-toggle:hover { background: rgba(255,255,255,0.18); }
+    .theme-toggle svg { opacity: 0.7; }
+    .theme-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      padding: 6px;
+      min-width: 200px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+      z-index: 100;
+    }
+    .theme-dropdown.open { display: block; }
+    .theme-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: rgba(255,255,255,0.8);
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+      transition: background 0.12s;
+    }
+    .theme-option:hover { background: rgba(255,255,255,0.08); }
+    .theme-option.active { background: rgba(255,255,255,0.12); color: white; font-weight: 600; }
+    .theme-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+    .swatch-default { background: linear-gradient(135deg, #f3f4f6, #1f2937); }
+    .swatch-brutalist { background: linear-gradient(135deg, #f0ece4, #ff0033); }
+    .swatch-retro { background: linear-gradient(135deg, #0d1b3e, #00e5ff); }
+    .swatch-luxury { background: linear-gradient(135deg, #faf8f5, #b08d57); }
+    .swatch-organic { background: linear-gradient(135deg, #fdf6ec, #1b4332); }
+  </style>
 </head>
 <body>
   <nav class="top-nav">
     <span class="brand"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> Sweepstake 2026</span>
     <a href="/" class="active">Standings</a>
+    <div class="theme-switcher">
+      <button class="theme-toggle" onclick="toggleThemeMenu()" aria-label="Switch theme">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Theme
+      </button>
+      <div class="theme-dropdown" id="theme-dropdown">
+        <button class="theme-option active" onclick="setTheme('default', this)">
+          <span class="theme-swatch swatch-default"></span> Default
+        </button>
+        <button class="theme-option" onclick="setTheme('brutalist', this)">
+          <span class="theme-swatch swatch-brutalist"></span> Brutalist / Raw
+        </button>
+        <button class="theme-option" onclick="setTheme('retro', this)">
+          <span class="theme-swatch swatch-retro"></span> Retro-Futuristic
+        </button>
+        <button class="theme-option" onclick="setTheme('luxury', this)">
+          <span class="theme-swatch swatch-luxury"></span> Luxury Editorial
+        </button>
+        <button class="theme-option" onclick="setTheme('organic', this)">
+          <span class="theme-swatch swatch-organic"></span> Organic / Stadium
+        </button>
+      </div>
+    </div>
   </nav>
 
   <div class="container">
@@ -21,6 +114,45 @@
   </div>
 
   <script>
+  const THEMES = {
+    default: { css: '/styles.css', navBg: null },
+    brutalist: { css: '/1-brutalist.css', navBg: null },
+    retro: { css: '/2-retro-futuristic.css', navBg: null },
+    luxury: { css: '/3-luxury-editorial.css', navBg: null },
+    organic: { css: '/4-stadium-atmosphere.css', navBg: null }
+  };
+
+  function toggleThemeMenu() {
+    document.getElementById('theme-dropdown').classList.toggle('open');
+  }
+
+  function setTheme(name, btn) {
+    const link = document.getElementById('theme-css');
+    link.href = THEMES[name].css;
+    localStorage.setItem('sweepstake-theme', name);
+    document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('theme-dropdown').classList.remove('open');
+  }
+
+  (function restoreTheme() {
+    const saved = localStorage.getItem('sweepstake-theme');
+    if (saved && THEMES[saved]) {
+      const link = document.getElementById('theme-css');
+      link.href = THEMES[saved].css;
+      document.querySelectorAll('.theme-option').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('onclick').includes("'" + saved + "'"));
+      });
+    }
+  })();
+
+  document.addEventListener('click', function(e) {
+    const sw = document.querySelector('.theme-switcher');
+    if (sw && !sw.contains(e.target)) {
+      document.getElementById('theme-dropdown').classList.remove('open');
+    }
+  });
+
   const ICONS = {
     trophy: '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
     dice: '<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/></svg>',
