@@ -138,7 +138,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     JOIN teams ht ON ht.id = m.home_team_id
     JOIN teams at ON at.id = m.away_team_id
     WHERE m.stage = 'group'
-    ORDER BY m.group_letter, COALESCE(m.kickoff_at, m.id)
+    ORDER BY m.group_letter, m.kickoff_at IS NULL, datetime(m.kickoff_at), m.id
   `).all();
 
   const knockoutMatchesRaw = await db.prepare(`
@@ -162,6 +162,84 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     return (team.goals_against ?? 0) > (worst.goals_against ?? 0) ? team : worst;
   }, flattened[0] || null);
 
+  const teamParticipantMap: Record<number, { id: number; name: string }> = {};
+  for (const t of teamsData.results) {
+    if (t.participant_id) {
+      teamParticipantMap[t.id] = { id: t.participant_id, name: participants.find((p: any) => p.id === t.participant_id)?.name || 'Unknown' };
+    }
+  }
+
+  const h2hMatchesRaw = await db.prepare(`
+    SELECT
+      m.id, m.home_score, m.away_score, m.played, m.kickoff_at,
+      ht.id as home_team_id, ht.name as home_team, ht.flag_emoji as home_flag,
+      at.id as away_team_id, at.name as away_team, at.flag_emoji as away_flag
+    FROM matches m
+    JOIN teams ht ON ht.id = m.home_team_id
+    JOIN teams at ON at.id = m.away_team_id
+    WHERE m.stage = 'group'
+    ORDER BY m.kickoff_at IS NULL, datetime(m.kickoff_at), m.id
+  `).all();
+
+  const h2hStats: Record<number, { played: number; won: number; drawn: number; lost: number; goals_for: number; goals_against: number; goal_difference: number; points: number; name: string }> = {};
+  for (const p of participants) {
+    h2hStats[p.id] = { played: 0, won: 0, drawn: 0, lost: 0, goals_for: 0, goals_against: 0, goal_difference: 0, points: 0, name: p.name };
+  }
+
+  const h2hUpcoming: any[] = [];
+  const h2hRecent: any[] = [];
+
+  for (const m of h2hMatchesRaw.results) {
+    const homeOwner = teamParticipantMap[m.home_team_id];
+    const awayOwner = teamParticipantMap[m.away_team_id];
+
+    if (!homeOwner || !awayOwner) continue;
+    if (homeOwner.id === awayOwner.id) continue;
+
+    if (m.played) {
+      const homeWin = m.home_score > m.away_score;
+      const awayWin = m.away_score > m.home_score;
+      const draw = m.home_score === m.away_score;
+
+      h2hStats[homeOwner.id].played++;
+      h2hStats[homeOwner.id].goals_for += m.home_score;
+      h2hStats[homeOwner.id].goals_against += m.away_score;
+      if (homeWin) { h2hStats[homeOwner.id].won++; h2hStats[homeOwner.id].points += 3; }
+      else if (draw) { h2hStats[homeOwner.id].drawn++; h2hStats[homeOwner.id].points += 1; }
+      else { h2hStats[homeOwner.id].lost++; }
+
+      h2hStats[awayOwner.id].played++;
+      h2hStats[awayOwner.id].goals_for += m.away_score;
+      h2hStats[awayOwner.id].goals_against += m.home_score;
+      if (awayWin) { h2hStats[awayOwner.id].won++; h2hStats[awayOwner.id].points += 3; }
+      else if (draw) { h2hStats[awayOwner.id].drawn++; h2hStats[awayOwner.id].points += 1; }
+      else { h2hStats[awayOwner.id].lost++; }
+
+      h2hRecent.push({
+        id: m.id, kickoff_at: m.kickoff_at,
+        home_participant: homeOwner.name, away_participant: awayOwner.name,
+        home_team: m.home_team, away_team: m.away_team,
+        home_flag: m.home_flag, away_flag: m.away_flag,
+        home_score: m.home_score, away_score: m.away_score,
+      });
+    } else {
+      h2hUpcoming.push({
+        id: m.id, kickoff_at: m.kickoff_at,
+        home_participant: homeOwner.name, away_participant: awayOwner.name,
+        home_team: m.home_team, away_team: m.away_team,
+        home_flag: m.home_flag, away_flag: m.away_flag,
+      });
+    }
+  }
+
+  const h2hTable = Object.values(h2hStats).map((s: any) => {
+    s.goal_difference = s.goals_for - s.goals_against;
+    return s;
+  }).sort((a: any, b: any) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_for - a.goals_for || a.name.localeCompare(b.name));
+  h2hTable.forEach((r: any, i: number) => { r.position = i + 1; });
+
+  h2hRecent.reverse();
+
   return Response.json({
     drawn: true,
     participants,
@@ -175,6 +253,11 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       flag_emoji: mostConceded.flag_emoji,
       goals_against: mostConceded.goals_against ?? 0,
       played: mostConceded.played ?? 0
-    } : null
+    } : null,
+    headToHead: {
+      table: h2hTable,
+      upcomingFixtures: h2hUpcoming,
+      recentResults: h2hRecent,
+    }
   });
 }
