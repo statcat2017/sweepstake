@@ -43,7 +43,6 @@ body {
   height: 56px;
   border-bottom: 2px solid var(--electric);
   position: relative;
-  overflow: hidden;
 }
 
 .top-nav::after {
