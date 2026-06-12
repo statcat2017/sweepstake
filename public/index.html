@@ -588,27 +588,9 @@
 
         <div class="h2h-fixtures">
           <div class="h2h-section">
-            <h3>Upcoming Fixtures</h3>
-            ${(standings.headToHead.upcomingFixtures || []).length === 0 ? '<p style="font-size:13px;margin-bottom:0">No upcoming fixtures</p>' :
-              (standings.headToHead.upcomingFixtures || []).slice(0, 6).map((f) => {
-                return '<div class="fixture-row">' +
-                  '<span class="fixture-time">' + formatUTC(f.kickoff_at) + '</span>' +
-                  '<span class="fixture-home">' + h(f.home_participant) + '</span>' +
-                  '<span class="fixture-score">vs</span>' +
-                  '<span class="fixture-away">' + h(f.away_participant) + '</span>' +
-                '</div>' +
-                '<div class="fixture-row fixture-teams">' +
-                  '<span class="fixture-time"></span>' +
-                  '<span class="fixture-home">' + h(f.home_flag) + ' ' + h(f.home_team) + '</span>' +
-                  '<span class="fixture-score"></span>' +
-                  '<span class="fixture-away">' + h(f.away_flag) + ' ' + h(f.away_team) + '</span>' +
-                '</div>';
-              }).join('')}
-          </div>
-          <div class="h2h-section">
-            <h3>Recent Results</h3>
+            <h3>Results</h3>
             ${(standings.headToHead.recentResults || []).length === 0 ? '<p style="font-size:13px;margin-bottom:0">No results yet</p>' :
-              (standings.headToHead.recentResults || []).slice(0, 6).map((f) => {
+              (standings.headToHead.recentResults || []).map((f) => {
                 return '<div class="fixture-row">' +
                   '<span class="fixture-time">' + formatUTC(f.kickoff_at) + '</span>' +
                   '<span class="fixture-home">' + h(f.home_participant) + '</span>' +
