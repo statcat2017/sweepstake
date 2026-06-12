@@ -17,7 +17,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       FROM matches m
       LEFT JOIN teams ht ON ht.id = m.home_team_id
       LEFT JOIN teams at ON at.id = m.away_team_id
-      ORDER BY m.id
+      ORDER BY m.stage != 'group', m.group_letter, m.kickoff_at IS NULL, datetime(m.kickoff_at), m.id
     `).all();
 
     return Response.json({ matches: matches.results });
