@@ -241,6 +241,11 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   h2hTable.forEach((r: any, i: number) => { r.position = i + 1; });
 
   h2hRecent.reverse();
+  h2hUpcoming.sort((a: any, b: any) => {
+    if (!a.kickoff_at) return 1;
+    if (!b.kickoff_at) return -1;
+    return new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime();
+  });
 
   return Response.json({
     drawn: true,
