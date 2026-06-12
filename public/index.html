@@ -74,6 +74,7 @@
     .swatch-retro { background: linear-gradient(135deg, #0d1b3e, #00e5ff); }
     .swatch-luxury { background: linear-gradient(135deg, #faf8f5, #b08d57); }
     .swatch-organic { background: linear-gradient(135deg, #fdf6ec, #1b4332); }
+    .swatch-savage { background: linear-gradient(135deg, #003090, #f5a623); }
   </style>
 </head>
 <body>
@@ -101,6 +102,9 @@
         <button class="theme-option" onclick="setTheme('organic', this)">
           <span class="theme-swatch swatch-organic"></span> Organic / Stadium
         </button>
+        <button class="theme-option" onclick="setTheme('savage', this)">
+          <span class="theme-swatch swatch-savage"></span> Robbie Savage
+        </button>
       </div>
     </div>
   </nav>
@@ -119,7 +123,8 @@
     brutalist: { css: '/1-brutalist.css', navBg: null },
     retro: { css: '/2-retro-futuristic.css', navBg: null },
     luxury: { css: '/3-luxury-editorial.css', navBg: null },
-    organic: { css: '/4-stadium-atmosphere.css', navBg: null }
+    organic: { css: '/4-stadium-atmosphere.css', navBg: null },
+    savage: { css: '/5-robbie-savage.css', navBg: null }
   };
 
   function toggleThemeMenu() {
