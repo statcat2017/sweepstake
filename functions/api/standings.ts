@@ -158,9 +158,10 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
   const flattened = Object.values(groups).flat();
 
-  const mostConceded = flattened.reduce((worst: any, team: any) => {
-    return (team.goals_against ?? 0) > (worst.goals_against ?? 0) ? team : worst;
-  }, flattened[0] || null);
+  const maxGA = Math.max(...flattened.map((t: any) => t.goals_against ?? 0), 0);
+  const worstTeams = flattened.filter((t: any) => (t.goals_against ?? 0) === maxGA);
+  const mostConceded = worstTeams.length === 1 ? worstTeams[0] : null;
+  const mostConcededCount = worstTeams.length > 1 ? worstTeams.length : null;
 
   const teamParticipantMap: Record<number, { id: number; name: string }> = {};
   for (const t of teamsData.results) {
@@ -255,6 +256,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       goals_against: mostConceded.goals_against ?? 0,
       played: mostConceded.played ?? 0
     } : null,
+    mostConcededCount,
     headToHead: {
       table: h2hTable,
       upcomingFixtures: h2hUpcoming,
