@@ -144,12 +144,16 @@
     btn.classList.add('active');
     document.getElementById('theme-dropdown').classList.remove('open');
     applyScotlandMode(THEMES[name].scotland);
+    if (window._standingsData) {
+      renderStandings(window._standingsData, window._participantsData);
+    }
   }
 
   function applyScotlandMode(enabled) {
-    document.body.classList.toggle('scotland-mode', enabled);
-    if (window._standingsData) {
-      renderStandings(window._standingsData, window._participantsData);
+    if (enabled) {
+      document.body.classList.add('scotland-mode');
+    } else {
+      document.body.classList.remove('scotland-mode');
     }
   }
 
