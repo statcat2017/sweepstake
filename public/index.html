@@ -75,6 +75,7 @@
     .swatch-luxury { background: linear-gradient(135deg, #faf8f5, #b08d57); }
     .swatch-organic { background: linear-gradient(135deg, #fdf6ec, #1b4332); }
     .swatch-savage { background: linear-gradient(135deg, #003090, #f5a623); }
+    .swatch-scotland { background: linear-gradient(135deg, #003078, #cf142b); }
   </style>
 </head>
 <body>
@@ -105,6 +106,9 @@
         <button class="theme-option" onclick="setTheme('savage', this)">
           <span class="theme-swatch swatch-savage"></span> Robbie Savage
         </button>
+        <button class="theme-option" onclick="setTheme('scotland', this)">
+          <span class="theme-swatch swatch-scotland"></span> Scotland
+        </button>
       </div>
     </div>
   </nav>
@@ -124,7 +128,8 @@
     retro: { css: '/2-retro-futuristic.css', navBg: null },
     luxury: { css: '/3-luxury-editorial.css', navBg: null },
     organic: { css: '/4-stadium-atmosphere.css', navBg: null },
-    savage: { css: '/5-robbie-savage.css', navBg: null }
+    savage: { css: '/5-robbie-savage.css', navBg: null },
+    scotland: { css: '/6-scotland.css', navBg: null, scotland: true }
   };
 
   function toggleThemeMenu() {
@@ -138,6 +143,23 @@
     document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('theme-dropdown').classList.remove('open');
+    applyScotlandMode(THEMES[name].scotland);
+  }
+
+  function applyScotlandMode(enabled) {
+    const selectors = [
+      '.team-name', '.fixture-home', '.fixture-away',
+      '.ko-team', '.match-card .teams span',
+      'td:nth-child(2)'
+    ];
+    document.querySelectorAll(selectors.join(',')).forEach(el => {
+      if (enabled) {
+        el.dataset.originalText = el.textContent;
+        el.textContent = 'SCOTLAND';
+      } else if (el.dataset.originalText) {
+        el.textContent = el.dataset.originalText;
+      }
+    });
   }
 
   (function restoreTheme() {
@@ -148,6 +170,7 @@
       document.querySelectorAll('.theme-option').forEach(b => {
         b.classList.toggle('active', b.getAttribute('onclick').includes("'" + saved + "'"));
       });
+      applyScotlandMode(THEMES[saved].scotland);
     }
   })();
 
