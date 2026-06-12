@@ -171,14 +171,14 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
   const h2hMatchesRaw = await db.prepare(`
     SELECT
-      m.id, m.home_score, m.away_score, m.played, m.kickoff_at,
+      m.id, m.group_letter, m.home_score, m.away_score, m.played, m.kickoff_at,
       ht.id as home_team_id, ht.name as home_team, ht.flag_emoji as home_flag,
       at.id as away_team_id, at.name as away_team, at.flag_emoji as away_flag
     FROM matches m
     JOIN teams ht ON ht.id = m.home_team_id
     JOIN teams at ON at.id = m.away_team_id
     WHERE m.stage = 'group'
-    ORDER BY m.kickoff_at IS NULL, datetime(m.kickoff_at), m.id
+    ORDER BY m.group_letter, m.kickoff_at IS NULL, datetime(m.kickoff_at), m.id
   `).all();
 
   const h2hStats: Record<number, { played: number; won: number; drawn: number; lost: number; goals_for: number; goals_against: number; goal_difference: number; points: number; name: string }> = {};
@@ -197,7 +197,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
     if (m.played) {
       h2hRecent.push({
-        id: m.id, kickoff_at: m.kickoff_at,
+        id: m.id, kickoff_at: m.kickoff_at, group_letter: m.group_letter,
         home_participant: homeOwner.name, away_participant: awayOwner.name,
         home_team: m.home_team, away_team: m.away_team,
         home_flag: m.home_flag, away_flag: m.away_flag,
@@ -225,7 +225,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       }
     } else {
       h2hUpcoming.push({
-        id: m.id, kickoff_at: m.kickoff_at,
+        id: m.id, kickoff_at: m.kickoff_at, group_letter: m.group_letter,
         home_participant: homeOwner.name, away_participant: awayOwner.name,
         home_team: m.home_team, away_team: m.away_team,
         home_flag: m.home_flag, away_flag: m.away_flag,
