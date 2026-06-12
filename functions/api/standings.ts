@@ -194,27 +194,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     const awayOwner = teamParticipantMap[m.away_team_id];
 
     if (!homeOwner || !awayOwner) continue;
-    if (homeOwner.id === awayOwner.id) continue;
 
     if (m.played) {
-      const homeWin = m.home_score > m.away_score;
-      const awayWin = m.away_score > m.home_score;
-      const draw = m.home_score === m.away_score;
-
-      h2hStats[homeOwner.id].played++;
-      h2hStats[homeOwner.id].goals_for += m.home_score;
-      h2hStats[homeOwner.id].goals_against += m.away_score;
-      if (homeWin) { h2hStats[homeOwner.id].won++; h2hStats[homeOwner.id].points += 3; }
-      else if (draw) { h2hStats[homeOwner.id].drawn++; h2hStats[homeOwner.id].points += 1; }
-      else { h2hStats[homeOwner.id].lost++; }
-
-      h2hStats[awayOwner.id].played++;
-      h2hStats[awayOwner.id].goals_for += m.away_score;
-      h2hStats[awayOwner.id].goals_against += m.home_score;
-      if (awayWin) { h2hStats[awayOwner.id].won++; h2hStats[awayOwner.id].points += 3; }
-      else if (draw) { h2hStats[awayOwner.id].drawn++; h2hStats[awayOwner.id].points += 1; }
-      else { h2hStats[awayOwner.id].lost++; }
-
       h2hRecent.push({
         id: m.id, kickoff_at: m.kickoff_at,
         home_participant: homeOwner.name, away_participant: awayOwner.name,
@@ -222,6 +203,26 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
         home_flag: m.home_flag, away_flag: m.away_flag,
         home_score: m.home_score, away_score: m.away_score,
       });
+
+      if (homeOwner.id !== awayOwner.id) {
+        const homeWin = m.home_score > m.away_score;
+        const awayWin = m.away_score > m.home_score;
+        const draw = m.home_score === m.away_score;
+
+        h2hStats[homeOwner.id].played++;
+        h2hStats[homeOwner.id].goals_for += m.home_score;
+        h2hStats[homeOwner.id].goals_against += m.away_score;
+        if (homeWin) { h2hStats[homeOwner.id].won++; h2hStats[homeOwner.id].points += 3; }
+        else if (draw) { h2hStats[homeOwner.id].drawn++; h2hStats[homeOwner.id].points += 1; }
+        else { h2hStats[homeOwner.id].lost++; }
+
+        h2hStats[awayOwner.id].played++;
+        h2hStats[awayOwner.id].goals_for += m.away_score;
+        h2hStats[awayOwner.id].goals_against += m.home_score;
+        if (awayWin) { h2hStats[awayOwner.id].won++; h2hStats[awayOwner.id].points += 3; }
+        else if (draw) { h2hStats[awayOwner.id].drawn++; h2hStats[awayOwner.id].points += 1; }
+        else { h2hStats[awayOwner.id].lost++; }
+      }
     } else {
       h2hUpcoming.push({
         id: m.id, kickoff_at: m.kickoff_at,
