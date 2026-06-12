@@ -541,13 +541,12 @@
           <table class="standings-table">
             <colgroup>
               <col style="width:30px">
-              <col style="width:160px">
+              <col>
+              <col style="width:32px">
+              <col style="width:32px">
+              <col style="width:32px">
+              <col style="width:32px">
               <col style="width:36px">
-              <col style="width:36px">
-              <col style="width:36px">
-              <col style="width:36px">
-              <col style="width:40px">
-              <col style="width:45px">
               <col style="width:40px">
             </colgroup>
             <thead><tr>
@@ -559,7 +558,6 @@
               <th class="col-num">L</th>
               <th class="col-num">GD</th>
               <th class="col-num col-pts">Pts</th>
-              <th class="col-num"></th>
             </tr></thead>
             <tbody>
               ${standings.headToHead.table.map((r) => {
@@ -579,7 +577,6 @@
                   '<td class="col-num">' + r.lost + '</td>' +
                   '<td class="col-num">' + gdStr + '</td>' +
                   '<td class="col-num col-pts">' + pts + '</td>' +
-                  '<td class="col-num">' + (r.position === 1 ? '<span class="badge alive">TOP</span>' : '') + '</td>' +
                   '</tr>';
               }).join('')}
             </tbody>

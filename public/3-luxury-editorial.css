@@ -500,8 +500,9 @@ tr.status-third { background: #faf5eb; }
 }
 
 .h2h-table { min-width: 0; }
-.h2h-table th, .h2h-table td { padding: 8px 8px; }
-.h2h-table th:nth-child(2), .h2h-table td:nth-child(2) { padding-left: 6px; padding-right: 6px; }
+.h2h-table th, .h2h-table td { padding: 6px 5px; }
+.h2h-table th:nth-child(2), .h2h-table td:nth-child(2) { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 768px) { .h2h-table th, .h2h-table td { padding: 4px 3px; font-size: 12px; } }
 .h2h-fixtures { min-width: 0; }
 .h2h-section { margin-bottom: 20px; }
 .h2h-section h3 {
