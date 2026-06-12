@@ -147,26 +147,10 @@
   }
 
   function applyScotlandMode(enabled) {
-    if (window._scotlandTimer) {
-      clearInterval(window._scotlandTimer);
-      window._scotlandTimer = null;
-    }
     document.body.classList.toggle('scotland-mode', enabled);
-    if (!enabled) {
-      document.querySelectorAll('[data-orig]').forEach(el => {
-        el.textContent = el.dataset.orig;
-        el.removeAttribute('data-orig');
-      });
-      return;
+    if (window._standingsData) {
+      renderStandings(window._standingsData, window._participantsData);
     }
-    function scotlandify() {
-      document.querySelectorAll('.team-name, .fixture-home, .fixture-away, .ko-team, .h2h-table td:nth-child(2)').forEach(el => {
-        if (!el.dataset.orig) el.dataset.orig = el.textContent;
-        el.textContent = 'SCOTLAND';
-      });
-    }
-    scotlandify();
-    window._scotlandTimer = setInterval(scotlandify, 300);
   }
 
   (function restoreTheme() {
@@ -198,7 +182,12 @@
   let allTeams = [];
 
   function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    if (value == null) return '';
+    const s = String(value);
+    if (document.body.classList.contains('scotland-mode') && !/^[\d\s\-–+×]*$/.test(s)) {
+      return 'Scotland';
+    }
+    return s.replace(/[&<>"']/g, (ch) => ({
       '&': '&amp;',
       '<': '&lt;',
       '>': '&gt;',
@@ -234,6 +223,8 @@
       } else {
         const standingsRes = await fetch('/api/standings');
         const standings = await readJson(standingsRes, 'Standings');
+        window._standingsData = standings;
+        window._participantsData = participants;
         renderStandings(standings, participants);
       }
     } catch (error) {
