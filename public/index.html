@@ -147,19 +147,26 @@
   }
 
   function applyScotlandMode(enabled) {
-    const selectors = [
-      '.team-name', '.fixture-home', '.fixture-away',
-      '.ko-team', '.match-card .teams span',
-      'td:nth-child(2)'
-    ];
-    document.querySelectorAll(selectors.join(',')).forEach(el => {
-      if (enabled) {
-        el.dataset.originalText = el.textContent;
+    if (window._scotlandTimer) {
+      clearInterval(window._scotlandTimer);
+      window._scotlandTimer = null;
+    }
+    document.body.classList.toggle('scotland-mode', enabled);
+    if (!enabled) {
+      document.querySelectorAll('[data-orig]').forEach(el => {
+        el.textContent = el.dataset.orig;
+        el.removeAttribute('data-orig');
+      });
+      return;
+    }
+    function scotlandify() {
+      document.querySelectorAll('.team-name, .fixture-home, .fixture-away, .ko-team, .h2h-table td:nth-child(2)').forEach(el => {
+        if (!el.dataset.orig) el.dataset.orig = el.textContent;
         el.textContent = 'SCOTLAND';
-      } else if (el.dataset.originalText) {
-        el.textContent = el.dataset.originalText;
-      }
-    });
+      });
+    }
+    scotlandify();
+    window._scotlandTimer = setInterval(scotlandify, 300);
   }
 
   (function restoreTheme() {
