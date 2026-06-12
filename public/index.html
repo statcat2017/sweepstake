@@ -587,7 +587,7 @@
           <div class="h2h-section">
             <h3>Upcoming Fixtures</h3>
             ${(standings.headToHead.upcomingFixtures || []).length === 0 ? '<p style="font-size:13px;margin-bottom:0">No upcoming fixtures</p>' :
-              (standings.headToHead.upcomingFixtures || []).map((f) => {
+              (standings.headToHead.upcomingFixtures || []).slice(0, 6).map((f) => {
                 return '<div class="fixture-row">' +
                   '<span class="fixture-time">' + formatUTC(f.kickoff_at) + '</span>' +
                   '<span class="fixture-home">' + h(f.home_participant) + '</span>' +
@@ -605,7 +605,7 @@
           <div class="h2h-section">
             <h3>Results</h3>
             ${(standings.headToHead.recentResults || []).length === 0 ? '<p style="font-size:13px;margin-bottom:0">No results yet</p>' :
-              (standings.headToHead.recentResults || []).map((f) => {
+              (standings.headToHead.recentResults || []).slice(0, 6).map((f) => {
                 return '<div class="fixture-row">' +
                   '<span class="fixture-time">' + formatUTC(f.kickoff_at) + '</span>' +
                   '<span class="fixture-home">' + h(f.home_participant) + '</span>' +
