@@ -229,15 +229,18 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
         const draw = m.home_score === m.away_score;
 
         h2hStats[homeOwner.id].played++;
-        h2hStats[homeOwner.id].goals_for += m.home_score + m.away_score;
-        h2hStats[homeOwner.id].goals_against += m.away_score + m.home_score;
-        if (draw) {
-          h2hStats[homeOwner.id].drawn++;
-          h2hStats[homeOwner.id].points += 2;
-        } else {
-          h2hStats[homeOwner.id].won++;
-          h2hStats[homeOwner.id].points += 3;
-        }
+        h2hStats[homeOwner.id].goals_for += m.home_score;
+        h2hStats[homeOwner.id].goals_against += m.away_score;
+        if (homeWin) { h2hStats[homeOwner.id].won++; h2hStats[homeOwner.id].points += 3; }
+        else if (draw) { h2hStats[homeOwner.id].drawn++; h2hStats[homeOwner.id].points += 1; }
+        else { h2hStats[homeOwner.id].lost++; }
+
+        h2hStats[homeOwner.id].played++;
+        h2hStats[homeOwner.id].goals_for += m.away_score;
+        h2hStats[homeOwner.id].goals_against += m.home_score;
+        if (awayWin) { h2hStats[homeOwner.id].won++; h2hStats[homeOwner.id].points += 3; }
+        else if (draw) { h2hStats[homeOwner.id].drawn++; h2hStats[homeOwner.id].points += 1; }
+        else { h2hStats[homeOwner.id].lost++; }
       }
     } else {
       h2hUpcoming.push({
