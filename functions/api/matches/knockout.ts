@@ -1,7 +1,7 @@
 import { getDb } from "../db";
 import { requireAuth } from "../auth";
 import { generateBracketSeeds } from "../sync/bracket-paths";
-import { sortByPointsGDGoals } from "../sync/standings-helper";
+import { rankGroup2026 } from "../sync/standings-helper";
 import { parseJsonBody, validateScores, validateId } from "../shared/validation";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
@@ -90,23 +90,39 @@ async function getBracket(db: D1Database) {
   const groupsRes = await db.prepare(`
     SELECT t.id, t.name, t.flag_emoji, t.group_letter,
       COALESCE(SUM(CASE WHEN m.home_team_id = t.id AND m.home_score > m.away_score THEN 3 WHEN m.home_team_id = t.id AND m.home_score = m.away_score THEN 1 WHEN m.away_team_id = t.id AND m.away_score > m.home_score THEN 3 WHEN m.away_team_id = t.id AND m.away_score = m.home_score THEN 1 ELSE 0 END), 0) as pts,
-      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.home_score WHEN m.away_team_id = t.id THEN m.away_score ELSE 0 END), 0) -
-      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.away_score WHEN m.away_team_id = t.id THEN m.home_score ELSE 0 END), 0) as gd,
       COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.home_score WHEN m.away_team_id = t.id THEN m.away_score ELSE 0 END), 0) as gf,
+      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.away_score WHEN m.away_team_id = t.id THEN m.home_score ELSE 0 END), 0) as ga,
       COALESCE(SUM(CASE WHEN (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.played = 1 THEN 1 ELSE 0 END), 0) as played
     FROM teams t
     LEFT JOIN matches m ON (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.stage = 'group'
     GROUP BY t.id
   `).all();
 
+  const groupMatchesRes = await db.prepare(`
+    SELECT m.group_letter, m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.played
+    FROM matches m
+    WHERE m.stage = 'group'
+  `).all();
+
+  const groupMatchesByLetter: Record<string, any[]> = {};
+  for (const m of groupMatchesRes.results) {
+    if (!groupMatchesByLetter[m.group_letter]) groupMatchesByLetter[m.group_letter] = [];
+    groupMatchesByLetter[m.group_letter].push(m);
+  }
+
   const groups: Record<string, any[]> = {};
   for (const row of groupsRes.results) {
+    row.points = row.pts;
+    row.goals_for = row.gf;
+    row.goals_against = row.ga;
+    row.team_id = row.id;
     if (!groups[row.group_letter]) groups[row.group_letter] = [];
     groups[row.group_letter].push(row);
   }
 
   for (const letter of Object.keys(groups)) {
-    groups[letter].sort(sortByPointsGDGoals);
+    const gMatches = groupMatchesByLetter[letter] || [];
+    groups[letter] = rankGroup2026(groups[letter], gMatches);
   }
 
   const groupWinners: any[] = [];
@@ -120,7 +136,13 @@ async function getBracket(db: D1Database) {
     if (g[2]) thirdPlaced.push({ ...g[2], position: 3 });
   }
 
-  thirdPlaced.sort(sortByPointsGDGoals);
+  thirdPlaced.sort((a: any, b: any) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    const aGD = (a.gf ?? 0) - (a.ga ?? 0);
+    const bGD = (b.gf ?? 0) - (b.ga ?? 0);
+    if (bGD !== aGD) return bGD - aGD;
+    return (b.gf ?? 0) - (a.gf ?? 0);
+  });
   const bestThird = thirdPlaced.slice(0, 8);
 
   const eligibleTeams = [
