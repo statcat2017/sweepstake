@@ -98,7 +98,7 @@ export function rankGroup2026(teams: any[], groupMatches: any[]): any[] {
   const result: any[] = [];
   for (const tier of tiers) {
     if (tier.length > 1) {
-      result.push(...resolveH2H(tier, groupMatches));
+      result.push(...resolveH2H(tier, groupMatches, 0));
     } else {
       result.push(tier[0]);
     }
@@ -106,15 +106,17 @@ export function rankGroup2026(teams: any[], groupMatches: any[]): any[] {
   return result;
 }
 
-function resolveH2H(teams: any[], groupMatches: any[]): any[] {
+function resolveH2H(teams: any[], groupMatches: any[], depth: number): any[] {
   if (teams.length <= 1) return teams;
 
   const tids = new Set(teams.map((t: any) => t.team_id));
 
+  let hasH2H = false;
   const h2h: Record<number, { pts: number; gf: number; ga: number }> = {};
   for (const t of teams) h2h[t.team_id] = { pts: 0, gf: 0, ga: 0 };
   for (const m of groupMatches) {
     if (!m.played || !tids.has(m.home_team_id) || !tids.has(m.away_team_id)) continue;
+    hasH2H = true;
     const hp = m.home_score > m.away_score ? 3 : m.home_score === m.away_score ? 1 : 0;
     const ap = m.away_score > m.home_score ? 3 : m.home_score === m.away_score ? 1 : 0;
     h2h[m.home_team_id].pts += hp;
@@ -123,6 +125,16 @@ function resolveH2H(teams: any[], groupMatches: any[]): any[] {
     h2h[m.away_team_id].pts += ap;
     h2h[m.away_team_id].gf += m.away_score;
     h2h[m.away_team_id].ga += m.home_score;
+  }
+
+  if (!hasH2H || depth > 5) {
+    return [...teams].sort((a: any, b: any) => {
+      const aGD = (a.goals_for ?? 0) - (a.goals_against ?? 0);
+      const bGD = (b.goals_for ?? 0) - (b.goals_against ?? 0);
+      if (bGD !== aGD) return bGD - aGD;
+      if ((b.goals_for ?? 0) !== (a.goals_for ?? 0)) return (b.goals_for ?? 0) - (a.goals_for ?? 0);
+      return a.team_id - b.team_id;
+    });
   }
 
   const sorted = [...teams].sort((a: any, b: any) => {
@@ -144,6 +156,7 @@ function resolveH2H(teams: any[], groupMatches: any[]): any[] {
   for (const t of sorted) {
     if (subTiers.length === 0) { subTiers.push([t]); continue; }
     const prev = subTiers[subTiers.length - 1][0];
+    if (t.team_id === prev.team_id) { subTiers[subTiers.length - 1].push(t); continue; }
     const ha = h2h[t.team_id];
     const hb = h2h[prev.team_id];
     const same = ha.pts === hb.pts &&
@@ -161,7 +174,7 @@ function resolveH2H(teams: any[], groupMatches: any[]): any[] {
   const result: any[] = [];
   for (const st of subTiers) {
     if (st.length > 1) {
-      result.push(...resolveH2H(st, groupMatches));
+      result.push(...resolveH2H(st, groupMatches, depth + 1));
     } else {
       result.push(st[0]);
     }
