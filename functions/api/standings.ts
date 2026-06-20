@@ -116,6 +116,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       teamStatus[team.team_id] = team.status;
     });
 
+    groups[letter] = ranked;
     thirdPlaced.push(ranked[2]);
   }
 
