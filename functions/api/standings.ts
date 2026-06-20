@@ -1,5 +1,5 @@
 import { getDb, isDrawLocked } from "./db";
-import { sortByPointsGDGoals } from "./sync/standings-helper";
+import { rankGroup2026, isMathematicallyEliminated } from "./sync/standings-helper";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
   const db = getDb(context.env);
@@ -57,6 +57,18 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     GROUP BY t.id
   `).all();
 
+  const groupMatchRows = await db.prepare(`
+    SELECT m.group_letter, m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.played
+    FROM matches m
+    WHERE m.stage = 'group'
+  `).all();
+
+  const groupMatchesByLetter: Record<string, any[]> = {};
+  for (const m of groupMatchRows.results) {
+    if (!groupMatchesByLetter[m.group_letter]) groupMatchesByLetter[m.group_letter] = [];
+    groupMatchesByLetter[m.group_letter].push(m);
+  }
+
   const groups: Record<string, any[]> = {};
   for (const row of groupStandings.results) {
     row.points = row.points ?? 0;
@@ -72,11 +84,12 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   const teamPosition: Record<number, number> = {};
 
   for (const [letter, teams] of Object.entries(groups)) {
-    teams.sort(sortByPointsGDGoals);
+    const gMatches = groupMatchesByLetter[letter] || [];
+    const ranked = rankGroup2026(teams, gMatches);
 
     const groupComplete = teams.every((t: any) => t.played >= 3);
 
-    teams.forEach((team: any, idx: number) => {
+    ranked.forEach((team: any, idx: number) => {
       const pos = idx + 1;
       team.position = pos;
       teamPosition[team.team_id] = pos;
@@ -90,7 +103,9 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
           team.status = "eliminated";
         }
       } else {
-        if (idx < 2) {
+        if (idx === 3 && isMathematicallyEliminated(team, teams, gMatches)) {
+          team.status = "eliminated";
+        } else if (idx < 2) {
           team.status = "qualifying";
         } else if (idx === 2) {
           team.status = "contending";
@@ -101,10 +116,16 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
       teamStatus[team.team_id] = team.status;
     });
 
-    thirdPlaced.push(teams[2]);
+    thirdPlaced.push(ranked[2]);
   }
 
-  thirdPlaced.sort(sortByPointsGDGoals);
+  thirdPlaced.sort((a: any, b: any) => {
+    if (b.points !== a.points) return b.points - a.points;
+    const aGD = (a.goals_for ?? 0) - (a.goals_against ?? 0);
+    const bGD = (b.goals_for ?? 0) - (b.goals_against ?? 0);
+    if (bGD !== aGD) return bGD - aGD;
+    return (b.goals_for ?? 0) - (a.goals_for ?? 0);
+  });
   thirdPlaced.forEach((team: any, idx: number) => {
     team.third_rank = idx + 1;
     const groupComplete = (groups[team.group_letter] || []).every((t: any) => t.played >= 3);
