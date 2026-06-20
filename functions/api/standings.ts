@@ -280,7 +280,11 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }).sort((a: any, b: any) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_for - a.goals_for || a.name.localeCompare(b.name));
   h2hTable.forEach((r: any, i: number) => { r.position = i + 1; });
 
-  h2hRecent.reverse();
+  h2hRecent.sort((a: any, b: any) => {
+    if (!a.kickoff_at) return 1;
+    if (!b.kickoff_at) return -1;
+    return new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime();
+  });
   h2hUpcoming.sort((a: any, b: any) => {
     if (!a.kickoff_at) return 1;
     if (!b.kickoff_at) return -1;
