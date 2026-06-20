@@ -193,34 +193,31 @@ export function isMathematicallyEliminated(
   );
   const teamMax = (team.points ?? 0) + 3 * teamRemaining.length;
 
-  const ahead: any[] = [];
-  const reachable: any[] = [];
+  let definitivelyAhead = 0;
 
   for (const other of allGroupTeams) {
     if (other.team_id === team.team_id) continue;
-    const otherRemaining = remaining.filter((m: any) =>
-      m.home_team_id === other.team_id || m.away_team_id === other.team_id
-    );
     const otherMin = other.points ?? 0;
-    const otherMax = otherMin + 3 * otherRemaining.length;
 
-    if (teamMax < otherMin) {
-      ahead.push(other);
-      continue;
-    }
-    if (teamMax === otherMin || teamMax > otherMin) {
-      reachable.push(other);
+    if (otherMin > teamMax) {
+      definitivelyAhead++;
+    } else if (otherMin === teamMax && otherMin > 0) {
+      const h2hMatches = groupMatches.filter((m: any) => m.played && (
+        (m.home_team_id === team.team_id && m.away_team_id === other.team_id) ||
+        (m.home_team_id === other.team_id && m.away_team_id === team.team_id)
+      ));
+      let teamH = 0, otherH = 0;
+      for (const m of h2hMatches) {
+        const hp = m.home_score > m.away_score ? 3 : m.home_score === m.away_score ? 1 : 0;
+        const ap = m.away_score > m.home_score ? 3 : m.home_score === m.away_score ? 1 : 0;
+        if (m.home_team_id === team.team_id) { teamH += hp; otherH += ap; }
+        else { teamH += ap; otherH += hp; }
+      }
+      if (otherH > teamH) definitivelyAhead++;
     }
   }
 
-  if (ahead.length >= 3) return true;
-
-  const sortedAll = rankGroup2026([team, ...reachable], groupMatches);
-  const teamPos = sortedAll.findIndex((t: any) => t.team_id === team.team_id);
-  if (teamPos === -1) return true;
-  if (teamPos <= 2) return false;
-
-  return ahead.length + teamPos >= 3;
+  return definitivelyAhead > allGroupTeams.length - 3;
 }
 
 export function resolveTeamSource(
