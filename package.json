@@ -12,6 +12,7 @@
     "db:migrate-fifa-rank": "wrangler d1 execute sweepstake-db --file=./schema-migration-fifa-rank.sql",
     "db:migrate-draw-fix": "wrangler d1 execute sweepstake-db --file=./schema-migration-draw-fix.sql",
     "db:migrate-pot": "wrangler d1 execute sweepstake-db --file=./schema-migration-pot.sql",
+    "db:migrate-kickoff-fix": "wrangler d1 execute sweepstake-db --file=./schema-migration-kickoff-fix.sql --remote",
     "smoke": "bash test/smoke.sh"
   },
   "devDependencies": {

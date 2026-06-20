@@ -185,35 +185,53 @@
       if (groupMatches.length === 0) {
         matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
       } else {
-        const byStage = {};
+        groupMatches.sort((a, b) => {
+          if (!a.kickoff_at) return 1;
+          if (!b.kickoff_at) return -1;
+          return new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime();
+        });
+
+        const byDay = {};
         for (const m of groupMatches) {
-          const stage = `Group ${m.group_letter}`;
-          if (!byStage[stage]) byStage[stage] = [];
-          byStage[stage].push(m);
+          if (!m.kickoff_at) { const key = 'TBD'; if (!byDay[key]) byDay[key] = []; byDay[key].push(m); continue; }
+          const d = new Date(m.kickoff_at);
+          const dayKey = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+          if (!byDay[dayKey]) byDay[dayKey] = [];
+          byDay[dayKey].push(m);
+        }
+
+        function fmtKickoff(iso) {
+          if (!iso) return '';
+          const d = new Date(iso);
+          const h = String(d.getUTCHours()).padStart(2, '0');
+          const m = String(d.getUTCMinutes()).padStart(2, '0');
+          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${h}:${m} UTC`;
         }
 
         matchList.innerHTML = '';
-        for (const [stage, stageMatches] of Object.entries(byStage)) {
-        let html = `<h3 style="margin:12px 0 8px;font-size:15px">${stage}</h3>`;
-        for (const m of stageMatches) {
-          html += `
-            <div class="match-card">
-              <div class="teams">
-                <span>${m.home_flag || ''} ${m.home_team || m.home_label || 'TBD'}</span>
-                <span class="vs">vs</span>
-                <span>${m.away_flag || ''} ${m.away_team || m.away_label || 'TBD'}</span>
-              </div>
-              <div class="score">
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
-                <span>-</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
-                <button class="btn primary" onclick="saveScore(${m.id})" style="padding:6px 12px;font-size:13px;min-height:unset">Save</button>
-              </div>
-            </div>
-          `;
+        for (const [day, dayMatches] of Object.entries(byDay)) {
+          matchList.innerHTML += `<h3 style="margin:16px 0 8px;font-size:15px">${day === 'TBD' ? 'Unassigned' : day}</h3>`;
+          for (const m of dayMatches) {
+            matchList.innerHTML += `
+              <div class="match-card">
+                <div style="font-size:11px;color:var(--gray-400);margin-bottom:4px">
+                  ${fmtKickoff(m.kickoff_at)} <span class="badge pot" style="font-size:10px">Group ${m.group_letter}</span>
+                </div>
+                <div class="teams">
+                  <span>${m.home_flag || ''} ${m.home_team || m.home_label || 'TBD'}</span>
+                  <span class="vs">vs</span>
+                  <span>${m.away_flag || ''} ${m.away_team || m.away_label || 'TBD'}</span>
+                </div>
+                <div class="score">
+                  <input type="text" inputmode="numeric" pattern="[0-9]*" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
+                  <span>-</span>
+                  <input type="text" inputmode="numeric" pattern="[0-9]*" id="as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
+                  <button class="btn primary" onclick="saveScore(${m.id})" style="padding:6px 12px;font-size:13px;min-height:unset">Save</button>
+                </div>
+              </div>`;
+          }
         }
-        matchList.innerHTML += html;
-      }
       }
     } else {
       matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';

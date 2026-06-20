@@ -14,7 +14,8 @@ npm run dev          # start dev server (with D1 bindings)
 npm run deploy       # deploy to production (--branch main)
 npm run db:init      # create tables from schema.sql
 npm run db:seed      # load 48 WC2026 teams
-npm run db:migrate   # run schema-migration.sql
+npm run db:migrate        # run schema-migration.sql
+npm run db:migrate-kickoff-fix # fix 6 wrong group-stage kickoff_at values
 npm run db:migrate-fifa-rank  # apply fifa_rank column + data
 npm run db:migrate-draw-fix   # catch-up for partial migration (winner_team_id + fifa_rank + ranks)
 npm run db:migrate-pot        # add pot column to participant_teams
