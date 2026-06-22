@@ -1,4 +1,4 @@
-import { getDb, acquireDrawLock } from "./db";
+import { getDb, acquireDrawLock, enableForeignKeys } from "./db";
 import { requireAuth } from "./auth";
 
 function shuffle<T>(arr: T[]): T[] {
@@ -29,6 +29,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 }
 
 async function handleDraw(db: D1Database): Promise<Response> {
+  await enableForeignKeys(db);
+
   const participants = await db.prepare("SELECT id FROM participants ORDER BY RANDOM()").all<{ id: number }>();
 
   if (!participants.results.length) {
@@ -127,6 +129,7 @@ async function handleDraw(db: D1Database): Promise<Response> {
 }
 
 async function handleReset(db: D1Database): Promise<Response> {
+  await enableForeignKeys(db);
   await db.batch([
     db.prepare("DELETE FROM participant_teams"),
     db.prepare("DELETE FROM matches WHERE stage = 'group'"),

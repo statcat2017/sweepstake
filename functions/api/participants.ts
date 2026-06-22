@@ -1,4 +1,4 @@
-import { getDb, isDrawLocked } from "./db";
+import { getDb, isDrawLocked, enableForeignKeys } from "./db";
 import { requireAuth } from "./auth";
 import { parseJsonBody } from "./shared/validation";
 
@@ -18,6 +18,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   if (context.request.method === "POST") {
     const auth = requireAuth(context.request, context.env);
     if (auth) return auth;
+
+    await enableForeignKeys(db);
 
     const parsed = await parseJsonBody(context.request);
     if (parsed instanceof Response) return parsed;
@@ -43,6 +45,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   if (context.request.method === "DELETE") {
     const auth = requireAuth(context.request, context.env);
     if (auth) return auth;
+
+    await enableForeignKeys(db);
 
     if (await isDrawLocked(db)) {
       return Response.json({ error: "Draw is locked. Reset it before removing participants." }, { status: 409 });

@@ -1,4 +1,4 @@
-import { getDb } from "./db";
+import { getDb, getGroupStandingsRows, enableForeignKeys } from "./db";
 import { requireAuth } from "./auth";
 import { apiNameToDbName, dbNameToApiName } from "./sync/team-mapping";
 import { getBracketDAG, getR32Slots } from "./sync/bracket-paths";
@@ -24,6 +24,8 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
   if (!apiKey) {
     return Response.json({ error: "FOOTBALL_API_KEY not configured on server." }, { status: 500 });
   }
+
+  await enableForeignKeys(db);
 
   try {
     return await runSync(db, apiKey);
@@ -257,25 +259,9 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
   await runLoop(MAX_ITERATIONS);
 
   // ── Phase B: assign R32 teams from group standings (only when all groups complete) ──
-  const groupRows = await db.prepare(`
-    SELECT
-      t.group_letter, t.id as team_id, t.name as team_name, t.flag_emoji as flag_emoji,
-      COALESCE(SUM(CASE
-        WHEN m.home_team_id = t.id THEN
-          CASE WHEN m.home_score > m.away_score THEN 3 WHEN m.home_score = m.away_score THEN 1 ELSE 0 END
-        WHEN m.away_team_id = t.id THEN
-          CASE WHEN m.away_score > m.home_score THEN 3 WHEN m.away_score = m.home_score THEN 1 ELSE 0 END
-        ELSE 0
-      END), 0) as points,
-      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.home_score WHEN m.away_team_id = t.id THEN m.away_score ELSE 0 END), 0) as goals_for,
-      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.away_score WHEN m.away_team_id = t.id THEN m.home_score ELSE 0 END), 0) as goals_against,
-      COALESCE(SUM(CASE WHEN (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.played = 1 THEN 1 ELSE 0 END), 0) as played
-    FROM teams t
-    LEFT JOIN matches m ON (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.stage = 'group'
-    GROUP BY t.id
-  `).all<any>();
+  const groupRows = await getGroupStandingsRows(db);
 
-  const groups = computeGroupStandings(groupRows.results);
+  const groups = computeGroupStandings(groupRows);
   const qualified = getQualifiedTeams(groups);
 
   if (qualified) {

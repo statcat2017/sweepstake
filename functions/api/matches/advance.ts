@@ -1,4 +1,4 @@
-import { getDb } from "../db";
+import { getDb, enableForeignKeys } from "../db";
 import { requireAuth } from "../auth";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database; ADMIN_PASSWORD?: string } }): Promise<Response> {
@@ -9,6 +9,8 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
   const auth = requireAuth(context.request, context.env);
   if (auth) return auth;
+
+  await enableForeignKeys(db);
 
   const all = await db.prepare(`
     SELECT id, stage, match_label, home_score, away_score, played,
