@@ -1,4 +1,4 @@
-import { getDb } from "../db";
+import { getDb, getGroupStandingsRows } from "../db";
 import { requireAuth } from "../auth";
 import { generateBracketSeeds } from "../sync/bracket-paths";
 import { rankGroup2026 } from "../sync/standings-helper";
@@ -87,16 +87,7 @@ async function getBracket(db: D1Database) {
     ORDER BY m.id
   `).all();
 
-  const groupsRes = await db.prepare(`
-    SELECT t.id, t.name, t.flag_emoji, t.group_letter,
-      COALESCE(SUM(CASE WHEN m.home_team_id = t.id AND m.home_score > m.away_score THEN 3 WHEN m.home_team_id = t.id AND m.home_score = m.away_score THEN 1 WHEN m.away_team_id = t.id AND m.away_score > m.home_score THEN 3 WHEN m.away_team_id = t.id AND m.away_score = m.home_score THEN 1 ELSE 0 END), 0) as pts,
-      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.home_score WHEN m.away_team_id = t.id THEN m.away_score ELSE 0 END), 0) as gf,
-      COALESCE(SUM(CASE WHEN m.home_team_id = t.id THEN m.away_score WHEN m.away_team_id = t.id THEN m.home_score ELSE 0 END), 0) as ga,
-      COALESCE(SUM(CASE WHEN (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.played = 1 THEN 1 ELSE 0 END), 0) as played
-    FROM teams t
-    LEFT JOIN matches m ON (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.stage = 'group'
-    GROUP BY t.id
-  `).all();
+  const groupsRes = await getGroupStandingsRows(db);
 
   const groupMatchesRes = await db.prepare(`
     SELECT m.group_letter, m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.played
@@ -111,11 +102,7 @@ async function getBracket(db: D1Database) {
   }
 
   const groups: Record<string, any[]> = {};
-  for (const row of groupsRes.results) {
-    row.points = row.pts;
-    row.goals_for = row.gf;
-    row.goals_against = row.ga;
-    row.team_id = row.id;
+  for (const row of groupsRes) {
     if (!groups[row.group_letter]) groups[row.group_letter] = [];
     groups[row.group_letter].push(row);
   }
@@ -137,11 +124,11 @@ async function getBracket(db: D1Database) {
   }
 
   thirdPlaced.sort((a: any, b: any) => {
-    if (b.pts !== a.pts) return b.pts - a.pts;
-    const aGD = (a.gf ?? 0) - (a.ga ?? 0);
-    const bGD = (b.gf ?? 0) - (b.ga ?? 0);
+    if (b.points !== a.points) return b.points - a.points;
+    const aGD = a.goals_for - a.goals_against;
+    const bGD = b.goals_for - b.goals_against;
     if (bGD !== aGD) return bGD - aGD;
-    return (b.gf ?? 0) - (a.gf ?? 0);
+    return b.goals_for - a.goals_for;
   });
   const bestThird = thirdPlaced.slice(0, 8);
 

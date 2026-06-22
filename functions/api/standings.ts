@@ -1,4 +1,4 @@
-import { getDb, isDrawLocked } from "./db";
+import { getDb, isDrawLocked, getGroupStandingsRows } from "./db";
 import { rankGroup2026, isMathematicallyEliminated } from "./sync/standings-helper";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
@@ -23,39 +23,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     ORDER BY t.group_letter, t.name
   `).all();
 
-  const groupStandings = await db.prepare(`
-    SELECT
-      t.group_letter, t.id as team_id, t.name as team_name, t.flag_emoji, t.eliminated,
-      SUM(CASE
-        WHEN m.home_team_id = t.id THEN
-          CASE
-            WHEN m.home_score > m.away_score THEN 3
-            WHEN m.home_score = m.away_score THEN 1
-            ELSE 0
-          END
-        WHEN m.away_team_id = t.id THEN
-          CASE
-            WHEN m.away_score > m.home_score THEN 3
-            WHEN m.away_score = m.home_score THEN 1
-            ELSE 0
-          END
-        ELSE 0
-      END) as points,
-      SUM(CASE
-        WHEN m.home_team_id = t.id THEN m.home_score
-        WHEN m.away_team_id = t.id THEN m.away_score
-        ELSE 0
-      END) as goals_for,
-      SUM(CASE
-        WHEN m.home_team_id = t.id THEN m.away_score
-        WHEN m.away_team_id = t.id THEN m.home_score
-        ELSE 0
-      END) as goals_against,
-      SUM(CASE WHEN (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.played = 1 THEN 1 ELSE 0 END) as played
-    FROM teams t
-    LEFT JOIN matches m ON (m.home_team_id = t.id OR m.away_team_id = t.id) AND m.stage = 'group'
-    GROUP BY t.id
-  `).all();
+  const groupStandingsResults = await getGroupStandingsRows(db);
 
   const groupMatchRows = await db.prepare(`
     SELECT m.group_letter, m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.played
@@ -70,11 +38,7 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   }
 
   const groups: Record<string, any[]> = {};
-  for (const row of groupStandings.results) {
-    row.points = row.points ?? 0;
-    row.goals_for = row.goals_for ?? 0;
-    row.goals_against = row.goals_against ?? 0;
-    row.played = row.played ?? 0;
+  for (const row of groupStandingsResults) {
     if (!groups[row.group_letter]) groups[row.group_letter] = [];
     groups[row.group_letter].push(row);
   }

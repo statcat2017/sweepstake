@@ -3,6 +3,7 @@ export interface GroupStandingRow {
   team_id: number;
   team_name: string;
   flag_emoji: string;
+  eliminated: number;
   points: number;
   goals_for: number;
   goals_against: number;
