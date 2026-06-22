@@ -1,4 +1,4 @@
-import { getDb, enableForeignKeys } from "./db";
+import { getDb } from "./db";
 import { requireAuth } from "./auth";
 import { parseJsonBody, validateScores, validateId } from "./shared/validation";
 
@@ -26,8 +26,6 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
   if (context.request.method === "PUT") {
     const auth = requireAuth(context.request, context.env);
     if (auth) return auth;
-
-    await enableForeignKeys(db);
 
     const parsed = await parseJsonBody(context.request);
     if (parsed instanceof Response) return parsed;

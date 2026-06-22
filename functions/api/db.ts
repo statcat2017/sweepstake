@@ -18,11 +18,9 @@ export async function acquireDrawLock(db: D1Database): Promise<boolean> {
   return result.meta.changes > 0;
 }
 
-export async function enableForeignKeys(db: D1Database): Promise<void> {
-  await db.prepare("PRAGMA foreign_keys = ON").run();
-}
+import type { GroupStandingRow } from "./sync/standings-helper";
 
-export async function getGroupStandingsRows(db: D1Database): Promise<any[]> {
+export async function getGroupStandingsRows(db: D1Database): Promise<GroupStandingRow[]> {
   const result = await db.prepare(`
     SELECT
       t.group_letter, t.id as team_id, t.name as team_name, t.flag_emoji, t.eliminated,

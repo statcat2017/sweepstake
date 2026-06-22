@@ -1,4 +1,4 @@
-import { getDb, enableForeignKeys } from "../db";
+import { getDb } from "../db";
 import { requireAuth } from "../auth";
 import { getKickoff } from "./schedule";
 
@@ -11,8 +11,6 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 
   const auth = requireAuth(context.request, context.env);
   if (auth) return auth;
-
-  await enableForeignKeys(db);
 
   const teams = await db.prepare("SELECT id, group_letter FROM teams ORDER BY group_letter, id").all<{ id: number; group_letter: string }>();
   const groups = new Map<string, number[]>();

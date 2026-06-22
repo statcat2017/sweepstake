@@ -1,4 +1,4 @@
-import { getDb, getGroupStandingsRows, enableForeignKeys } from "../db";
+import { getDb, getGroupStandingsRows } from "../db";
 import { requireAuth } from "../auth";
 import { generateBracketSeeds } from "../sync/bracket-paths";
 import { rankGroup2026 } from "../sync/standings-helper";
@@ -29,7 +29,6 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
 }
 
 async function seedKnockout(db: D1Database) {
-  await enableForeignKeys(db);
   await db.prepare("DELETE FROM matches WHERE stage != 'group'").run();
 
   const seeds = generateBracketSeeds();
@@ -149,8 +148,6 @@ async function getBracket(db: D1Database) {
 }
 
 async function updateKnockoutMatch(db: D1Database, body: any) {
-  await enableForeignKeys(db);
-
   const idResult = validateId(body);
   if (idResult instanceof Response) return idResult;
   const id = idResult;

@@ -1,4 +1,4 @@
-import { getDb, getGroupStandingsRows, enableForeignKeys } from "./db";
+import { getDb, getGroupStandingsRows } from "./db";
 import { requireAuth } from "./auth";
 import { apiNameToDbName, dbNameToApiName } from "./sync/team-mapping";
 import { getBracketDAG, getR32Slots } from "./sync/bracket-paths";
@@ -24,8 +24,6 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
   if (!apiKey) {
     return Response.json({ error: "FOOTBALL_API_KEY not configured on server." }, { status: 500 });
   }
-
-  await enableForeignKeys(db);
 
   try {
     return await runSync(db, apiKey);
