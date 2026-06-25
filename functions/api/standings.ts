@@ -1,5 +1,5 @@
 import { getDb, isDrawLocked, getGroupStandingsRows } from "./db";
-import { rankGroup2026, isMathematicallyEliminated } from "./sync/standings-helper";
+import { rankGroup2026, isMathematicallyEliminated, computeThirdPlaceStatus } from "./sync/standings-helper";
 
 export async function onRequest(context: { request: Request; env: { DB: D1Database } }): Promise<Response> {
   const db = getDb(context.env);
@@ -91,14 +91,15 @@ export async function onRequest(context: { request: Request; env: { DB: D1Databa
     if (bGD !== aGD) return bGD - aGD;
     return (b.goals_for ?? 0) - (a.goals_for ?? 0);
   });
+
+  const thirdStatus = computeThirdPlaceStatus(groups, groupMatchesByLetter);
+
   thirdPlaced.forEach((team: any, idx: number) => {
     team.third_rank = idx + 1;
-    const groupComplete = (groups[team.group_letter] || []).every((t: any) => t.played >= 3);
-    if (groupComplete) {
-      const finalStatus = idx < 8 ? "qualified" : "eliminated";
-      team.status = finalStatus;
-      teamStatus[team.team_id] = finalStatus;
-    }
+    const status = thirdStatus[team.team_id] || "third";
+    const finalStatus = status === "qualified" ? "qualified" : status === "eliminated" ? "eliminated" : (idx < 8 ? "third" : "third");
+    team.status = finalStatus;
+    teamStatus[team.team_id] = finalStatus;
   });
 
   const participants = participantsRaw.results.map((p: any) => {

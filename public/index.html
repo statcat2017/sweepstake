@@ -786,7 +786,7 @@
         const gdStr = gd > 0 ? `+${gd}` : String(gd);
         const isDefinitive = r.status === 'qualified' || r.status === 'eliminated';
         const zeroHero = pts == 0 && gf == 0 && pld > 0;
-        const rowClass = r.third_rank <= 8 ? 'status-qualified' : 'status-eliminated';
+        const rowClass = !isDefinitive ? 'status-third' : (r.status === 'qualified' ? 'status-qualified' : 'status-eliminated');
         const badge = zeroHero ? '<span class="badge zero-hero-badge">' + ICONS.battery + '</span>' : (isDefinitive ? (r.status === 'qualified' ? '<span class="badge alive">Q</span>' : '<span class="badge eliminated">OUT</span>') : '<span class="badge third">TBD</span>');
         html += `<tr class="${rowClass} ${zeroHero ? 'zero-hero' : ''}">
           <td class="pos col-num">${r.third_rank}</td>
