@@ -221,6 +221,142 @@ export function isMathematicallyEliminated(
   return definitivelyAhead > allGroupTeams.length - 3;
 }
 
+// Determine definitive third-place qualification status for each group's
+// current 3rd-placed team, considering remaining fixtures across ALL groups.
+//
+// A team is only "qualified" if, no matter how remaining games resolve, it
+// cannot fall out of the top 8 third-placed teams. Symmetrically it is only
+// "eliminated" if it cannot climb back into the top 8. Otherwise "third"
+// (i.e. still to be decided).
+//
+// The bounds used here are deliberately conservative so the function never
+// falsely reports a definitive outcome:
+//   * For the "qualified" direction we over-estimate how strong a competitor
+//     from an incomplete group could be (any of its 4 teams winning all
+//     remaining games), making definitive qualification harder to claim.
+//   * For the "eliminated" direction we only count groups that are GUARANTEED
+//     to produce a third-placed team ahead of this one (complete groups, or
+//     incomplete groups where even the weakest possible 3rd-placed side is
+//     already ahead on points).
+export function computeThirdPlaceStatus(
+  groups: Record<string, any[]>,
+  groupMatchesByLetter: Record<string, any[]>
+): Record<number, "qualified" | "eliminated" | "third"> {
+  const result: Record<number, "qualified" | "eliminated" | "third"> = {};
+  const groupLetters = Object.keys(groups);
+
+  interface GroupInfo {
+    complete: boolean;
+    third: any;
+    maxCompetitorPts: number;
+    minCurrentPts: number;
+  }
+  const info: Record<string, GroupInfo> = {};
+
+  for (const letter of groupLetters) {
+    const teams = groups[letter];
+    const matches = groupMatchesByLetter[letter] || [];
+    const complete = teams.every((t: any) => (t.played ?? 0) >= 3);
+    const third = teams[2];
+
+    const remaining: Record<number, number> = {};
+    for (const t of teams) remaining[t.team_id] = 0;
+    for (const m of matches) {
+      if (!m.played) {
+        if (remaining[m.home_team_id] != null) remaining[m.home_team_id]++;
+        if (remaining[m.away_team_id] != null) remaining[m.away_team_id]++;
+      }
+    }
+
+    let maxCompetitorPts = -Infinity;
+    let minCurrentPts = Infinity;
+    for (const t of teams) {
+      const pts = t.points ?? 0;
+      const maxPts = pts + 3 * (remaining[t.team_id] || 0);
+      if (maxPts > maxCompetitorPts) maxCompetitorPts = maxPts;
+      if (pts < minCurrentPts) minCurrentPts = pts;
+    }
+
+    info[letter] = { complete, third, maxCompetitorPts, minCurrentPts };
+  }
+
+  // a beats b on the third-place tiebreak (pts, GD, GF).
+  // `strict` controls how exact ties on all three criteria are treated:
+  //   * strict=false (used for the "qualified" direction) treats ties as a
+  //     beat, inflating canBeat so definitive qualification is harder to claim.
+  //   * strict=true (used for the "eliminated" direction) treats ties as NOT a
+  //     beat, so a competitor that only ties is not counted as guaranteed-ahead
+  //     (fair-play/drawing of lots could still favour T).
+  const beats = (
+    a: { pts: number; gd: number; gf: number },
+    b: { pts: number; gd: number; gf: number },
+    strict = false,
+  ): boolean => {
+    if (a.pts !== b.pts) return a.pts > b.pts;
+    if (a.gd !== b.gd) return a.gd > b.gd;
+    if (a.gf !== b.gf) return a.gf > b.gf;
+    return !strict;
+  };
+  const statOf = (t: any) => ({
+    pts: t.points ?? 0,
+    gd: (t.goals_for ?? 0) - (t.goals_against ?? 0),
+    gf: t.goals_for ?? 0,
+  });
+
+  for (const myLetter of groupLetters) {
+    const me = info[myLetter];
+    const third = me.third;
+    if (!third) continue;
+
+    // T must be locked into 3rd in its own group (group complete) before any
+    // definitive third-place qualification can be claimed.
+    if (!me.complete) {
+      result[third.team_id] = "third";
+      continue;
+    }
+
+    const tStat = statOf(third);
+
+    // ── Qualified? Count groups that could still produce a 3rd ahead of T. ──
+    let canBeat = 0;
+    for (const otherLetter of groupLetters) {
+      if (otherLetter === myLetter) continue;
+      const oi = info[otherLetter];
+      if (oi.complete) {
+        if (beats(statOf(oi.third), tStat)) canBeat++;
+      } else if (oi.maxCompetitorPts >= tStat.pts) {
+        // An incomplete group could still field a 3rd-placed team that at
+        // least ties T on points (and GD is unbounded), so it can overtake.
+        canBeat++;
+      }
+    }
+    if (canBeat <= 7) {
+      result[third.team_id] = "qualified";
+      continue;
+    }
+
+    // ── Eliminated? Count groups guaranteed to finish a 3rd ahead of T. ──
+    // Use strict tie-break: a competitor that only ties T on pts/GD/GF is NOT
+    // counted as guaranteed-ahead (fair-play/drawing of lots may favour T).
+    let definiteBeat = 0;
+    for (const otherLetter of groupLetters) {
+      if (otherLetter === myLetter) continue;
+      const oi = info[otherLetter];
+      if (oi.complete) {
+        if (beats(statOf(oi.third), tStat, true)) definiteBeat++;
+      } else if (oi.minCurrentPts > tStat.pts) {
+        // Every team in this incomplete group already has more points than T,
+        // and points can only grow, so whichever becomes the 3rd-placed side
+        // will finish strictly ahead of T on points.
+        definiteBeat++;
+      }
+    }
+    result[third.team_id] = definiteBeat >= 8 ? "eliminated" : "third";
+  }
+
+  return result;
+}
+
 export function resolveTeamSource(
   source: { type: string; group?: string; groups?: string[] },
   qualified: QualifiedTeams,
