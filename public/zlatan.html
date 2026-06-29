@@ -329,7 +329,7 @@
       return;
     }
 
-    let html = '<div class="card"><h3 style="margin-bottom:8px">Knockout Score Sheet</h3><p style="margin-bottom:12px;color:var(--gray-400)">Use this list if the bracket view is hard to read.</p>';
+    let html = '<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h3 style="margin-bottom:8px">Knockout Score Sheet</h3><p style="margin-bottom:12px;color:var(--gray-400)">Use this list if the bracket view is hard to read.</p></div><button class="btn primary" onclick="saveKnockoutTeams()">Save Scores</button></div>';
     for (const m of matches) {
       const isR32 = m.stage === 'round_of_32';
       const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : m.match_label || 'TBD';
