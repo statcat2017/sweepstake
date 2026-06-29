@@ -1,6 +1,6 @@
 import { apiNameToDbName, dbNameToApiName } from "./team-mapping";
 import { getR32Slots } from "./bracket-paths";
-import { resolveTeamSource, type QualifiedTeams } from "./standings-helper";
+import type { QualifiedTeams } from "./standings-helper";
 
 export async function buildTeamResolver(db: D1Database, errors: string[] = []): Promise<(apiName: string) => number | null> {
   const teams = await db.prepare("SELECT id, name FROM teams").all<any>();
@@ -25,7 +25,7 @@ export async function buildTeamResolver(db: D1Database, errors: string[] = []): 
 
 export async function assignR32TeamsFromQualified(
   db: D1Database,
-  qualified: QualifiedTeams,
+  _qualified: QualifiedTeams,
 ): Promise<{ assigned: number; skipped: number; errors: string[] }> {
   const r32Slots = getR32Slots();
   const r32Matches = await db.prepare(`
@@ -35,8 +35,8 @@ export async function assignR32TeamsFromQualified(
     ORDER BY id
   `).all<any>();
 
-  const usedThirdGroups = new Set<string>();
   const errors: string[] = [];
+  const resolveTeam = await buildTeamResolver(db, errors);
   let assigned = 0;
   let skipped = 0;
 
@@ -44,19 +44,13 @@ export async function assignR32TeamsFromQualified(
     const slot = r32Slots[i];
     const match = r32Matches.results[i];
 
-    if (match.home_team_id && match.away_team_id) continue;
-
-    const provisionalThirdGroups = new Set(usedThirdGroups);
-    const homeId = resolveTeamSource(slot.homeSource, qualified, provisionalThirdGroups);
-    const awayId = resolveTeamSource(slot.awaySource, qualified, provisionalThirdGroups);
+    const homeId = resolveTeam(slot.homeTeam);
+    const awayId = resolveTeam(slot.awayTeam);
     if (!homeId || !awayId) {
       skipped++;
-      errors.push(`Could not resolve ${slot.label}`);
+      errors.push(`Could not resolve ${slot.label}: ${slot.homeTeam} vs ${slot.awayTeam}`);
       continue;
     }
-
-    usedThirdGroups.clear();
-    for (const group of provisionalThirdGroups) usedThirdGroups.add(group);
 
     if (match.home_team_id === homeId && match.away_team_id === awayId) continue;
 

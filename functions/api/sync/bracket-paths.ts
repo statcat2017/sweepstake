@@ -1,13 +1,8 @@
 export interface BracketSlot {
   label: string;
-  homeSource: TeamSource;
-  awaySource: TeamSource;
+  homeTeam: string;
+  awayTeam: string;
 }
-
-export type TeamSource =
-  | { type: "winner"; group: string }
-  | { type: "runner-up"; group: string }
-  | { type: "best-third"; groups: string[] };
 
 export interface FeederLink {
   childLabel: string;
@@ -16,22 +11,22 @@ export interface FeederLink {
 }
 
 const r32: BracketSlot[] = [
-  { label: "R32-01", homeSource: { type: "runner-up", group: "A" }, awaySource: { type: "runner-up", group: "B" } },
-  { label: "R32-02", homeSource: { type: "winner", group: "E" }, awaySource: { type: "best-third", groups: ["A", "B", "C", "D", "F"] } },
-  { label: "R32-03", homeSource: { type: "winner", group: "F" }, awaySource: { type: "runner-up", group: "C" } },
-  { label: "R32-04", homeSource: { type: "winner", group: "C" }, awaySource: { type: "runner-up", group: "F" } },
-  { label: "R32-05", homeSource: { type: "winner", group: "I" }, awaySource: { type: "best-third", groups: ["C", "D", "F", "G", "H"] } },
-  { label: "R32-06", homeSource: { type: "runner-up", group: "E" }, awaySource: { type: "runner-up", group: "I" } },
-  { label: "R32-07", homeSource: { type: "winner", group: "A" }, awaySource: { type: "best-third", groups: ["C", "E", "F", "H", "I"] } },
-  { label: "R32-08", homeSource: { type: "winner", group: "L" }, awaySource: { type: "best-third", groups: ["E", "H", "I", "J", "K"] } },
-  { label: "R32-09", homeSource: { type: "winner", group: "D" }, awaySource: { type: "best-third", groups: ["B", "E", "F", "I", "J"] } },
-  { label: "R32-10", homeSource: { type: "winner", group: "G" }, awaySource: { type: "best-third", groups: ["A", "E", "H", "I", "J"] } },
-  { label: "R32-11", homeSource: { type: "runner-up", group: "K" }, awaySource: { type: "runner-up", group: "L" } },
-  { label: "R32-12", homeSource: { type: "winner", group: "H" }, awaySource: { type: "runner-up", group: "J" } },
-  { label: "R32-13", homeSource: { type: "winner", group: "B" }, awaySource: { type: "best-third", groups: ["E", "F", "G", "I", "J"] } },
-  { label: "R32-14", homeSource: { type: "winner", group: "J" }, awaySource: { type: "runner-up", group: "H" } },
-  { label: "R32-15", homeSource: { type: "winner", group: "K" }, awaySource: { type: "best-third", groups: ["D", "E", "I", "J", "L"] } },
-  { label: "R32-16", homeSource: { type: "runner-up", group: "D" }, awaySource: { type: "runner-up", group: "G" } },
+  { label: "R32-01", homeTeam: "South Africa", awayTeam: "Canada" },
+  { label: "R32-02", homeTeam: "Germany", awayTeam: "Paraguay" },
+  { label: "R32-03", homeTeam: "Netherlands", awayTeam: "Morocco" },
+  { label: "R32-04", homeTeam: "Brazil", awayTeam: "Japan" },
+  { label: "R32-05", homeTeam: "France", awayTeam: "Sweden" },
+  { label: "R32-06", homeTeam: "Ivory Coast", awayTeam: "Norway" },
+  { label: "R32-07", homeTeam: "Mexico", awayTeam: "Ecuador" },
+  { label: "R32-08", homeTeam: "England", awayTeam: "DR Congo" },
+  { label: "R32-09", homeTeam: "United States", awayTeam: "Bosnia and Herzegovina" },
+  { label: "R32-10", homeTeam: "Belgium", awayTeam: "Senegal" },
+  { label: "R32-11", homeTeam: "Portugal", awayTeam: "Croatia" },
+  { label: "R32-12", homeTeam: "Spain", awayTeam: "Austria" },
+  { label: "R32-13", homeTeam: "Switzerland", awayTeam: "Algeria" },
+  { label: "R32-14", homeTeam: "Argentina", awayTeam: "Cape Verde" },
+  { label: "R32-15", homeTeam: "Colombia", awayTeam: "Ghana" },
+  { label: "R32-16", homeTeam: "Australia", awayTeam: "Egypt" },
 ];
 
 const dag: FeederLink[] = [
