@@ -19,7 +19,7 @@ const r32: BracketSlot[] = [
   { label: "R32-06", homeTeam: "Ivory Coast", awayTeam: "Norway" },
   { label: "R32-07", homeTeam: "Mexico", awayTeam: "Ecuador" },
   { label: "R32-08", homeTeam: "England", awayTeam: "DR Congo" },
-  { label: "R32-09", homeTeam: "United States", awayTeam: "Bosnia and Herzegovina" },
+  { label: "R32-09", homeTeam: "USA", awayTeam: "Bosnia-Herzegovina" },
   { label: "R32-10", homeTeam: "Belgium", awayTeam: "Senegal" },
   { label: "R32-11", homeTeam: "Portugal", awayTeam: "Croatia" },
   { label: "R32-12", homeTeam: "Spain", awayTeam: "Austria" },
