@@ -17,10 +17,10 @@ export interface FeederLink {
 
 const r32: BracketSlot[] = [
   { label: "R32-01", homeSource: { type: "runner-up", group: "A" }, awaySource: { type: "runner-up", group: "B" } },
-  { label: "R32-02", homeSource: { type: "winner", group: "C" }, awaySource: { type: "runner-up", group: "F" } },
-  { label: "R32-03", homeSource: { type: "winner", group: "E" }, awaySource: { type: "best-third", groups: ["A", "B", "C", "D", "F"] } },
-  { label: "R32-04", homeSource: { type: "winner", group: "I" }, awaySource: { type: "best-third", groups: ["C", "D", "F", "G", "H"] } },
-  { label: "R32-05", homeSource: { type: "winner", group: "F" }, awaySource: { type: "runner-up", group: "C" } },
+  { label: "R32-02", homeSource: { type: "winner", group: "E" }, awaySource: { type: "best-third", groups: ["A", "B", "C", "D", "F"] } },
+  { label: "R32-03", homeSource: { type: "winner", group: "F" }, awaySource: { type: "runner-up", group: "C" } },
+  { label: "R32-04", homeSource: { type: "winner", group: "C" }, awaySource: { type: "runner-up", group: "F" } },
+  { label: "R32-05", homeSource: { type: "winner", group: "I" }, awaySource: { type: "best-third", groups: ["C", "D", "F", "G", "H"] } },
   { label: "R32-06", homeSource: { type: "runner-up", group: "E" }, awaySource: { type: "runner-up", group: "I" } },
   { label: "R32-07", homeSource: { type: "winner", group: "A" }, awaySource: { type: "best-third", groups: ["C", "E", "F", "H", "I"] } },
   { label: "R32-08", homeSource: { type: "winner", group: "L" }, awaySource: { type: "best-third", groups: ["E", "H", "I", "J", "K"] } },

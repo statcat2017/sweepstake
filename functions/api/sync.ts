@@ -1,8 +1,8 @@
 import { getDb, getGroupStandingsRows } from "./db";
 import { requireAuth } from "./auth";
 import { getBracketDAG } from "./sync/bracket-paths";
-import { assignR32TeamsFromFixtures, buildTeamResolver } from "./sync/r32-populate";
-import { computeGroupStandings, getQualifiedTeams, resolveTeamSource } from "./sync/standings-helper";
+import { assignR32TeamsFromQualified, buildTeamResolver } from "./sync/r32-populate";
+import { computeGroupStandings, getQualifiedTeams } from "./sync/standings-helper";
 
 interface Env {
   DB: D1Database;
@@ -242,14 +242,14 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
 
   await runLoop(MAX_ITERATIONS);
 
-  // ── Phase B: assign R32 teams from group standings (only when all groups complete) ──
+  // ── Phase B: assign R32 teams from the Wikipedia bracket once groups are complete ──
   const groupRows = await getGroupStandingsRows(db);
 
   const groups = computeGroupStandings(groupRows);
   const qualified = getQualifiedTeams(groups);
 
   if (qualified) {
-    const r32Result = await assignR32TeamsFromFixtures(db, fixtures, qualified, resolveTeam);
+    const r32Result = await assignR32TeamsFromQualified(db, qualified);
     report.r32_teams_assigned = r32Result.assigned;
     report.errors.push(...r32Result.errors);
   }
