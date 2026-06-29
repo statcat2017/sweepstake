@@ -141,6 +141,7 @@
     const matches = await matchRes.json();
     const standings = await stateRes.json();
     const knocks = await knockRes.json();
+    const bracketMatches = (knocks.matches && knocks.matches.length > 0) ? knocks.matches : (standings.knockoutMatches || []);
 
     drawLocked = participants.drawn;
     document.getElementById('draw-btn').disabled = drawLocked || participants.participants.length < 2;
@@ -239,17 +240,17 @@
       matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
     }
 
-    renderBracketEditor(knocks);
+    renderBracketEditor(knocks, bracketMatches);
   }
 
-  function renderBracketEditor(knocks) {
+  function renderBracketEditor(knocks, bracketMatches) {
     const container = document.getElementById('bracket-editor');
-    if (!knocks.matches || knocks.matches.length === 0) {
+    if (!bracketMatches || bracketMatches.length === 0) {
       container.innerHTML = '<p style="color:var(--gray-400)">No knockout bracket yet. Click "Seed Knockout Bracket" to create it.</p>';
       return;
     }
 
-    knockouts = knocks.matches;
+    knockouts = bracketMatches;
     eligibleTeams = knocks.eligibleTeams || [];
 
     const stages = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'];
