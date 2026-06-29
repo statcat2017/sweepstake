@@ -7,11 +7,24 @@ interface ApiFixture {
     id?: number;
     date?: string;
   };
-  league?: { round?: string };
+  league?: {
+    id?: number;
+    name?: string;
+    country?: string;
+    season?: number;
+    round?: string;
+  };
   teams?: {
     home?: { name?: string };
     away?: { name?: string };
   };
+}
+
+export interface CompetitionInfo {
+  league_id: number;
+  league_name: string | null;
+  country: string | null;
+  season: number | null;
 }
 
 export function formatUtcDate(date: Date): string {
@@ -52,6 +65,18 @@ export async function fetchFixturesForDates(apiKey: string, dates: string[]): Pr
   }
 
   return fixtures;
+}
+
+export function inferCompetitionFromFixtures(fixtures: ApiFixture[]): CompetitionInfo | null {
+  const candidate = fixtures.find(f => String(f.league?.round || "").toLowerCase().includes("round of 32"));
+  if (!candidate?.league?.id) return null;
+
+  return {
+    league_id: candidate.league.id,
+    league_name: candidate.league.name ?? null,
+    country: candidate.league.country ?? null,
+    season: candidate.league.season ?? null,
+  };
 }
 
 export async function buildTeamResolver(db: D1Database, errors: string[] = []): Promise<(apiName: string) => number | null> {

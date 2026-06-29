@@ -1,6 +1,6 @@
 import { getDb, getGroupStandingsRows } from "../../db";
 import { requireAuth } from "../../auth";
-import { assignR32TeamsFromFixtures, assignR32TeamsFromQualified, buildTeamResolver, fetchFixturesForDates, getNearbyUtcDates } from "../../sync/r32-populate";
+import { assignR32TeamsFromFixtures, assignR32TeamsFromQualified, buildTeamResolver, fetchFixturesForDates, getNearbyUtcDates, inferCompetitionFromFixtures } from "../../sync/r32-populate";
 import { computeGroupStandings, getQualifiedTeams } from "../../sync/standings-helper";
 
 interface Env {
@@ -33,6 +33,7 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
 
     const dates = getNearbyUtcDates();
     const fixtures = await fetchFixturesForDates(apiKey, dates);
+    const competition = inferCompetitionFromFixtures(fixtures);
 
     if (fixtures.length > 0) {
       const resolverErrors: string[] = [];
@@ -43,6 +44,7 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
         return Response.json({
           populated: true,
           source: "api",
+          competition,
           fixture_dates: dates,
           fixtures_fetched: fixtures.length,
           ...result,
@@ -55,6 +57,7 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
     return Response.json({
       populated: true,
       source: "standings",
+      competition,
       fixture_dates: dates,
       fixtures_fetched: fixtures.length,
       ...fallback,
