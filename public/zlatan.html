@@ -86,6 +86,7 @@
       </div>
       <div id="populate-r32-result" style="margin-bottom:12px"></div>
       <div id="bracket-editor"></div>
+      <div id="knockout-score-sheet" style="margin-top:16px"></div>
     </div>
   </div>
   </div>
@@ -241,6 +242,7 @@
     }
 
     renderBracketEditor(knocks, bracketMatches);
+    renderKnockoutScoreSheet(bracketMatches);
   }
 
   function renderBracketEditor(knocks, bracketMatches) {
@@ -320,6 +322,32 @@
     container.innerHTML = html;
   }
 
+  function renderKnockoutScoreSheet(matches) {
+    const container = document.getElementById('knockout-score-sheet');
+    if (!matches || matches.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let html = '<div class="card"><h3 style="margin-bottom:8px">Knockout Score Sheet</h3><p style="margin-bottom:12px;color:var(--gray-400)">Use this list if the bracket view is hard to read.</p>';
+    for (const m of matches) {
+      const isR32 = m.stage === 'round_of_32';
+      const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : m.match_label || 'TBD';
+      const awayLabel = m.away_team ? `${m.away_flag || ''} ${m.away_team}` : m.match_label || 'TBD';
+      html += `<div class="ko-match" style="margin-bottom:8px">
+        <span class="ko-team">${homeLabel}</span>
+        <div class="ko-score-input">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+          <span>–</span>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+        </div>
+        <span class="ko-team">${awayLabel}${isR32 ? ' <span class="badge pot">R32</span>' : ''}</span>
+      </div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
   async function seedKnockout() {
     const res = await apiFetch('/api/matches/knockout', { method: 'POST' });
     if (res.ok) {
@@ -369,6 +397,10 @@
 
   async function saveKnockoutTeams() {
     let count = 0;
+    function scoreValue(idA, idB) {
+      return document.getElementById(idA) || document.getElementById(idB);
+    }
+
     // First save all team selections for R32
     for (const m of knockouts) {
       if (m.stage !== 'round_of_32') continue;
@@ -378,8 +410,10 @@
 
       const homeId = homeSel.value ? parseInt(homeSel.value) : null;
       const awayId = awaySel.value ? parseInt(awaySel.value) : null;
-      const homeScore = document.getElementById(`ko-hs-${m.id}`).value;
-      const awayScore = document.getElementById(`ko-as-${m.id}`).value;
+      const homeScoreInput = scoreValue(`ko-hs-${m.id}`, `sheet-hs-${m.id}`);
+      const awayScoreInput = scoreValue(`ko-as-${m.id}`, `sheet-as-${m.id}`);
+      const homeScore = homeScoreInput ? homeScoreInput.value : '';
+      const awayScore = awayScoreInput ? awayScoreInput.value : '';
 
       const body = { id: m.id };
       if (homeId !== m.home_team_id) body.home_team_id = homeId;
@@ -400,8 +434,10 @@
     // Also save scores for non-R32 matches
     for (const m of knockouts) {
       if (m.stage === 'round_of_32') continue;
-      const homeScore = document.getElementById(`ko-hs-${m.id}`)?.value;
-      const awayScore = document.getElementById(`ko-as-${m.id}`)?.value;
+      const homeScoreInput = scoreValue(`ko-hs-${m.id}`, `sheet-hs-${m.id}`);
+      const awayScoreInput = scoreValue(`ko-as-${m.id}`, `sheet-as-${m.id}`);
+      const homeScore = homeScoreInput?.value;
+      const awayScore = awayScoreInput?.value;
       if (!homeScore && !awayScore) continue;
       if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
 
