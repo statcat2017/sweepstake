@@ -77,12 +77,14 @@
 
     <div class="card">
       <h2 style="margin-bottom:12px">Knockout Bracket</h2>
-      <p>Set up Round of 32 matchups, then enter scores. Click "Advance Winners" to auto-populate later rounds.</p>
+      <p>Set up Round of 32 matchups, or auto-populate them from API-Football once groups are complete.</p>
       <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" onclick="seedKnockout()">Seed Knockout Bracket</button>
+        <button class="btn outline" id="populate-r32-btn" onclick="populateR32()">Auto-Populate R32</button>
         <button class="btn outline" onclick="saveKnockoutTeams()">Save Team Selections</button>
         <button class="btn outline" onclick="advanceWinners()">Advance Winners</button>
       </div>
+      <div id="populate-r32-result" style="margin-bottom:12px"></div>
       <div id="bracket-editor"></div>
     </div>
   </div>
@@ -326,6 +328,38 @@
     } else {
       const err = await res.json();
       alert(err.error || 'Failed to seed knockout bracket.', 'error');
+    }
+  }
+
+  async function populateR32() {
+    const btn = document.getElementById('populate-r32-btn');
+    btn.disabled = true;
+    btn.textContent = 'Populating...';
+    document.getElementById('populate-r32-result').innerHTML = '<p style="color:var(--gray-400)">Fetching Round of 32 fixtures from API-Football...</p>';
+
+    try {
+      const res = await apiFetch('/api/matches/knockout/populate', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.error) {
+        document.getElementById('populate-r32-result').innerHTML = `<div class="alert error">${data.error}</div>`;
+      } else {
+        let html = '<div class="alert success" style="font-size:13px">';
+        html += `<strong>R32 populated</strong> — ${data.assigned} matches updated<br>`;
+        if (data.skipped > 0) html += `${data.skipped} slots skipped<br>`;
+        if (data.errors?.length) {
+          html += `<span style="color:var(--red)">Warnings:</span> ${data.errors.slice(0, 3).join('; ')}`;
+          if (data.errors.length > 3) html += ` (+${data.errors.length - 3} more)`;
+        }
+        html += '</div>';
+        document.getElementById('populate-r32-result').innerHTML = html;
+        load();
+      }
+    } catch (err) {
+      document.getElementById('populate-r32-result').innerHTML = `<div class="alert error">Populate failed: ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Auto-Populate R32';
     }
   }
 
