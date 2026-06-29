@@ -67,9 +67,10 @@
 
     <div class="card">
       <h2>Match Results</h2>
-      <p>Enter scores for played matches, or sync automatically from API-Football.</p>
+      <p>Enter scores for played matches, then save them all at once.</p>
       <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn primary" id="sync-btn" onclick="syncScores()">Sync Scores from API</button>
+        <button class="btn primary" id="save-group-btn" onclick="saveAllGroupScores()">Save All Group Scores</button>
+        <button class="btn outline" id="sync-btn" onclick="syncScores()">Sync Scores from API</button>
       </div>
       <div id="sync-result" style="margin-bottom:12px"></div>
       <div id="match-list"></div>
@@ -94,6 +95,7 @@
   <script>
   let PASSWORD = sessionStorage.getItem('sweepstake_auth') || '';
   let drawLocked = false;
+  let groupMatches = [];
   let knockouts = [];
   let eligibleTeams = [];
 
@@ -143,6 +145,7 @@
     const standings = await stateRes.json();
     const knocks = await knockRes.json();
     const bracketMatches = (knocks.matches && knocks.matches.length > 0) ? knocks.matches : (standings.knockoutMatches || []);
+    groupMatches = (matches.matches || []).filter(m => m.stage === 'group');
 
     drawLocked = participants.drawn;
     document.getElementById('draw-btn').disabled = drawLocked || participants.participants.length < 2;
@@ -185,7 +188,6 @@
 
     const matchList = document.getElementById('match-list');
     if (matches.matches?.length) {
-      const groupMatches = matches.matches.filter(m => m.stage === 'group');
       if (groupMatches.length === 0) {
         matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
       } else {
@@ -231,7 +233,6 @@
                   <input type="text" inputmode="numeric" pattern="[0-9]*" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
                   <span>-</span>
                   <input type="text" inputmode="numeric" pattern="[0-9]*" id="as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
-                  <button class="btn primary" onclick="saveScore(${m.id})" style="padding:6px 12px;font-size:13px;min-height:unset">Save</button>
                 </div>
               </div>`;
           }
@@ -560,6 +561,47 @@
     if (res.ok) {
       alert('Score saved!', 'success');
       load();
+    }
+  }
+
+  async function saveAllGroupScores() {
+    const btn = document.getElementById('save-group-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    let count = 0;
+    try {
+      for (const m of groupMatches) {
+        const homeInput = document.getElementById(`hs-${m.id}`);
+        const awayInput = document.getElementById(`as-${m.id}`);
+        if (!homeInput || !awayInput) continue;
+
+        const homeScore = homeInput.value;
+        const awayScore = awayInput.value;
+        if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
+        if (homeScore === '' && awayScore === '') continue;
+
+        await apiFetch('/api/matches', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: m.id,
+            home_score: homeScore !== '' ? parseInt(homeScore) : null,
+            away_score: awayScore !== '' ? parseInt(awayScore) : null
+          })
+        });
+        count++;
+      }
+
+      if (count > 0) {
+        alert(`Saved ${count} group scores!`, 'success');
+        load();
+      } else {
+        alert('No group score changes to save.', 'info');
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save All Group Scores';
     }
   }
 
