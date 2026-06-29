@@ -67,18 +67,6 @@ export async function fetchFixturesForDates(apiKey: string, dates: string[]): Pr
   return fixtures;
 }
 
-export function inferCompetitionFromFixtures(fixtures: ApiFixture[]): CompetitionInfo | null {
-  const candidate = fixtures.find(f => String(f.league?.round || "").toLowerCase().includes("round of 32"));
-  if (!candidate?.league?.id) return null;
-
-  return {
-    league_id: candidate.league.id,
-    league_name: candidate.league.name ?? null,
-    country: candidate.league.country ?? null,
-    season: candidate.league.season ?? null,
-  };
-}
-
 export async function buildTeamResolver(db: D1Database, errors: string[] = []): Promise<(apiName: string) => number | null> {
   const teams = await db.prepare("SELECT id, name FROM teams").all<any>();
   const nameToDbId = new Map<string, number>();
@@ -105,7 +93,7 @@ export async function assignR32TeamsFromFixtures(
   fixtures: ApiFixture[],
   qualified: QualifiedTeams,
   resolveTeam: (apiName: string) => number | null,
-): Promise<{ assigned: number; skipped: number; errors: string[] }> {
+): Promise<{ assigned: number; skipped: number; errors: string[]; competition: CompetitionInfo | null }> {
   const r32Slots = getR32Slots();
   const r32Matches = await db.prepare(`
     SELECT id, home_team_id, away_team_id
@@ -116,6 +104,7 @@ export async function assignR32TeamsFromFixtures(
 
   const usedThirdGroups = new Set<string>();
   const errors: string[] = [];
+  let competition: CompetitionInfo | null = null;
   let assigned = 0;
   let skipped = 0;
 
@@ -158,6 +147,15 @@ export async function assignR32TeamsFromFixtures(
       continue;
     }
 
+    if (!competition) {
+      competition = {
+        league_id: selected.fixture?.league?.id ?? 0,
+        league_name: selected.fixture?.league?.name ?? null,
+        country: selected.fixture?.league?.country ?? null,
+        season: selected.fixture?.league?.season ?? null,
+      };
+    }
+
     usedThirdGroups.clear();
     for (const group of provisionalThirdGroups) usedThirdGroups.add(group);
 
@@ -172,7 +170,7 @@ export async function assignR32TeamsFromFixtures(
     assigned++;
   }
 
-  return { assigned, skipped, errors };
+  return { assigned, skipped, errors, competition };
 }
 
 export async function assignR32TeamsFromQualified(
