@@ -77,7 +77,7 @@
 
     <div class="card">
       <h2 style="margin-bottom:12px">Knockout Bracket</h2>
-      <p>Set up Round of 32 matchups, or auto-populate them from API-Football once groups are complete.</p>
+      <p>Set up Round of 32 matchups, or auto-populate them once groups are complete.</p>
       <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" onclick="seedKnockout()">Seed Knockout Bracket</button>
         <button class="btn outline" id="populate-r32-btn" onclick="populateR32()">Auto-Populate R32</button>
@@ -335,7 +335,7 @@
     const btn = document.getElementById('populate-r32-btn');
     btn.disabled = true;
     btn.textContent = 'Populating...';
-    document.getElementById('populate-r32-result').innerHTML = '<p style="color:var(--gray-400)">Fetching Round of 32 fixtures from API-Football...</p>';
+    document.getElementById('populate-r32-result').innerHTML = '<p style="color:var(--gray-400)">Resolving Round of 32 matchups...</p>';
 
     try {
       const res = await apiFetch('/api/matches/knockout/populate', { method: 'POST' });

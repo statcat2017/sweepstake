@@ -105,3 +105,52 @@ export async function assignR32TeamsFromFixtures(
 
   return { assigned, skipped, errors };
 }
+
+export async function assignR32TeamsFromQualified(
+  db: D1Database,
+  qualified: QualifiedTeams,
+): Promise<{ assigned: number; skipped: number; errors: string[] }> {
+  const r32Slots = getR32Slots();
+  const r32Matches = await db.prepare(`
+    SELECT id, home_team_id, away_team_id
+    FROM matches
+    WHERE stage = 'round_of_32'
+    ORDER BY id
+  `).all<any>();
+
+  const usedThirdGroups = new Set<string>();
+  const errors: string[] = [];
+  let assigned = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < r32Slots.length && i < r32Matches.results.length; i++) {
+    const slot = r32Slots[i];
+    const match = r32Matches.results[i];
+
+    if (match.home_team_id && match.away_team_id) continue;
+
+    const provisionalThirdGroups = new Set(usedThirdGroups);
+    const homeId = resolveTeamSource(slot.homeSource, qualified, provisionalThirdGroups);
+    const awayId = resolveTeamSource(slot.awaySource, qualified, provisionalThirdGroups);
+    if (!homeId || !awayId) {
+      skipped++;
+      errors.push(`Could not resolve ${slot.label}`);
+      continue;
+    }
+
+    usedThirdGroups.clear();
+    for (const group of provisionalThirdGroups) usedThirdGroups.add(group);
+
+    if (match.home_team_id === homeId && match.away_team_id === awayId) continue;
+
+    await db.prepare(`
+      UPDATE matches
+      SET home_team_id = ?, away_team_id = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(homeId, awayId, match.id).run();
+
+    assigned++;
+  }
+
+  return { assigned, skipped, errors };
+}
