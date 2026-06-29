@@ -3,11 +3,55 @@ import { getR32Slots } from "./bracket-paths";
 import { resolveTeamSource, type QualifiedTeams } from "./standings-helper";
 
 interface ApiFixture {
+  fixture?: {
+    id?: number;
+    date?: string;
+  };
   league?: { round?: string };
   teams?: {
     home?: { name?: string };
     away?: { name?: string };
   };
+}
+
+export function formatUtcDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function getNearbyUtcDates(base = new Date()): string[] {
+  const offsets = [-1, 0, 1];
+  return offsets.map(offset => {
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() + offset);
+    return formatUtcDate(d);
+  });
+}
+
+export async function fetchFixturesForDates(apiKey: string, dates: string[]): Promise<ApiFixture[]> {
+  const seen = new Set<number>();
+  const fixtures: ApiFixture[] = [];
+
+  for (const date of dates) {
+    const resp = await fetch(`https://v3.football.api-sports.io/fixtures?date=${encodeURIComponent(date)}`, {
+      headers: { "x-apisports-key": apiKey },
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`API-Football returned ${resp.status} for ${date}: ${text.slice(0, 200)}`);
+    }
+
+    const data: any = await resp.json();
+    if (!data.response || !Array.isArray(data.response)) continue;
+
+    for (const fixture of data.response as ApiFixture[]) {
+      const id = fixture.fixture?.id;
+      if (typeof id === "number" && seen.has(id)) continue;
+      if (typeof id === "number") seen.add(id);
+      fixtures.push(fixture);
+    }
+  }
+
+  return fixtures;
 }
 
 export async function buildTeamResolver(db: D1Database, errors: string[] = []): Promise<(apiName: string) => number | null> {
