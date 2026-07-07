@@ -1,7 +1,7 @@
 import { getDb } from "../../db";
 import { requireAuth } from "../../auth";
 import { seedBracket } from "../../sync/bracket-paths";
-import { assignR32TeamsFromQualified } from "../../sync/r32-populate";
+import { assignR32TeamsFromBracketSlots } from "../../sync/r32-populate";
 
 interface Env {
   DB: D1Database;
@@ -28,7 +28,7 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
       seeded = 32;
     }
 
-    const result = await assignR32TeamsFromQualified(db);
+    const result = await assignR32TeamsFromBracketSlots(db);
     return Response.json({
       populated: true,
       source: "wikipedia",

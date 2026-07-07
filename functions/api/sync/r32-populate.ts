@@ -22,15 +22,14 @@ export async function buildTeamResolver(db: D1Database, errors: string[] = []): 
   };
 }
 
-export async function assignR32TeamsFromQualified(
+export async function assignR32TeamsFromBracketSlots(
   db: D1Database,
 ): Promise<{ assigned: number; skipped: number; errors: string[] }> {
   const r32Slots = getR32Slots();
   const r32Matches = await db.prepare(`
-    SELECT id, home_team_id, away_team_id
+    SELECT id, match_label, home_team_id, away_team_id
     FROM matches
     WHERE stage = 'round_of_32'
-    ORDER BY id
   `).all<any>();
 
   const errors: string[] = [];
@@ -38,9 +37,18 @@ export async function assignR32TeamsFromQualified(
   let assigned = 0;
   let skipped = 0;
 
-  for (let i = 0; i < r32Slots.length && i < r32Matches.results.length; i++) {
-    const slot = r32Slots[i];
-    const match = r32Matches.results[i];
+  const labelToMatch = new Map<string, any>();
+  for (const m of r32Matches.results) {
+    if (m.match_label) labelToMatch.set(m.match_label, m);
+  }
+
+  for (const slot of r32Slots) {
+    const match = labelToMatch.get(slot.label);
+    if (!match) {
+      skipped++;
+      errors.push(`No match row for ${slot.label}`);
+      continue;
+    }
 
     const homeId = resolveTeam(slot.homeTeam);
     const awayId = resolveTeam(slot.awayTeam);

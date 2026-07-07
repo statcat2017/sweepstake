@@ -1,7 +1,7 @@
 import { getDb, getGroupStandingsRows } from "./db";
 import { requireAuth } from "./auth";
 import { getBracketDAG } from "./sync/bracket-paths";
-import { assignR32TeamsFromQualified, buildTeamResolver } from "./sync/r32-populate";
+import { assignR32TeamsFromBracketSlots, buildTeamResolver } from "./sync/r32-populate";
 import { computeGroupStandings, getQualifiedTeams } from "./sync/standings-helper";
 
 interface Env {
@@ -249,7 +249,7 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
   const qualified = getQualifiedTeams(groups);
 
   if (qualified) {
-    const r32Result = await assignR32TeamsFromQualified(db, qualified);
+    const r32Result = await assignR32TeamsFromBracketSlots(db);
     report.r32_teams_assigned = r32Result.assigned;
     report.errors.push(...r32Result.errors);
   }

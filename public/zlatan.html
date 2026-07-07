@@ -330,7 +330,7 @@
       return;
     }
 
-    let html = '<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h3 style="margin-bottom:8px">Knockout Score Sheet</h3><p style="margin-bottom:12px;color:var(--gray-400)">Use this list if the bracket view is hard to read.</p></div><button class="btn primary" onclick="saveKnockoutTeams()">Save Scores</button></div>';
+    let html = '<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h3 style="margin-bottom:8px">Knockout Score Sheet</h3><p style="margin-bottom:12px;color:var(--gray-400)">Use this list if the bracket view is hard to read.</p></div><button class="btn primary" onclick="saveKnockoutScoreSheet()">Save Scores</button></div>';
     for (const m of matches) {
       const isR32 = m.stage === 'round_of_32';
       const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : m.match_label || 'TBD';
@@ -424,11 +424,15 @@
 
       if (Object.keys(body).length <= 1) continue;
 
-      await apiFetch('/api/matches/knockout', {
+      const res = await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to save match ${m.id}`);
+      }
       count++;
     }
 
@@ -442,7 +446,7 @@
       if (!homeScore && !awayScore) continue;
       if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
 
-      await apiFetch('/api/matches/knockout', {
+      const res = await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -451,11 +455,49 @@
           away_score: awayScore !== '' ? parseInt(awayScore) : null
         })
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to save match ${m.id}`);
+      }
       count++;
     }
 
     if (count > 0) {
       alert(`Saved ${count} updates!`, 'success');
+      load();
+    }
+  }
+
+  async function saveKnockoutScoreSheet() {
+    let count = 0;
+    for (const m of knockouts) {
+      const homeInput = document.getElementById(`sheet-hs-${m.id}`);
+      const awayInput = document.getElementById(`sheet-as-${m.id}`);
+      if (!homeInput || !awayInput) continue;
+
+      const homeScore = homeInput.value;
+      const awayScore = awayInput.value;
+      if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
+      if (homeScore === '' && awayScore === '') continue;
+
+      const res = await apiFetch('/api/matches/knockout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: m.id,
+          home_score: homeScore !== '' ? parseInt(homeScore) : null,
+          away_score: awayScore !== '' ? parseInt(awayScore) : null
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to save match ${m.id}`);
+      }
+      count++;
+    }
+
+    if (count > 0) {
+      alert(`Saved ${count} knockout scores!`, 'success');
       load();
     }
   }
@@ -581,7 +623,7 @@
         if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
         if (homeScore === '' && awayScore === '') continue;
 
-        await apiFetch('/api/matches', {
+        const res = await apiFetch('/api/matches', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -590,6 +632,10 @@
             away_score: awayScore !== '' ? parseInt(awayScore) : null
           })
         });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Failed to save match ${m.id}`);
+        }
         count++;
       }
 

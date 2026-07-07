@@ -188,7 +188,24 @@ check200 "Set score 2-1" -X PUT "$BASE/api/matches" -H "$AUTH" -H "$JSON" \
 check200 "Standings reflect score" "$BASE/api/standings"
 
 echo ""
-echo "--- 6. Knockout bracket ---"
+echo "--- 6a. Auto-Populate R32 (auto-seed path) ---"
+POP_RESP=$(curl -sf -X POST "$BASE/api/matches/knockout/populate" -H "$AUTH")
+POP_SEEDED=$(echo "$POP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('seeded',0))" 2>/dev/null)
+POP_ASSIGNED=$(echo "$POP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('assigned',0))" 2>/dev/null)
+echo "  seeded=$POP_SEEDED, assigned=$POP_ASSIGNED"
+if [ "$POP_SEEDED" != "32" ]; then
+  echo "  FAIL: expected seeded=32, got $POP_SEEDED"
+  echo "  Response: $POP_RESP"
+  FAIL=$((FAIL + 1))
+fi
+if [ "$POP_ASSIGNED" != "16" ]; then
+  echo "  FAIL: expected 16 R32 teams assigned, got $POP_ASSIGNED"
+  echo "  Response: $POP_RESP"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+echo "--- 6b. Knockout bracket (re-seed for manual test) ---"
 check200 "Seed knockout" -X POST "$BASE/api/matches/knockout" -H "$AUTH"
 KO_INFO=$(curl -sf "$BASE/api/matches/knockout" | python3 -c "
 import sys, json
@@ -203,13 +220,13 @@ if [ "$KO_MATCHES" != "32" ]; then
 fi
 
 echo ""
-echo "--- 6b. Auto-Populate R32 ---"
-POP_RESP=$(curl -sf -X POST "$BASE/api/matches/knockout/populate" -H "$AUTH")
-POP_ASSIGNED=$(echo "$POP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('assigned',0))" 2>/dev/null)
-echo "  R32 teams assigned: $POP_ASSIGNED"
-if [ "$POP_ASSIGNED" != "16" ]; then
-  echo "  FAIL: expected 16 R32 teams assigned, got $POP_ASSIGNED"
-  echo "  Response: $POP_RESP"
+echo "--- 6c. Auto-Populate R32 (after manual seed) ---"
+POP_RESP2=$(curl -sf -X POST "$BASE/api/matches/knockout/populate" -H "$AUTH")
+POP_ASSIGNED2=$(echo "$POP_RESP2" | python3 -c "import sys,json; print(json.load(sys.stdin).get('assigned',0))" 2>/dev/null)
+echo "  R32 teams assigned: $POP_ASSIGNED2"
+if [ "$POP_ASSIGNED2" != "16" ]; then
+  echo "  FAIL: expected 16 R32 teams assigned, got $POP_ASSIGNED2"
+  echo "  Response: $POP_RESP2"
   FAIL=$((FAIL + 1))
 fi
 
