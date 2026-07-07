@@ -284,6 +284,7 @@
 
         html += `<div class="ko-match" style="margin-bottom:8px">`;
         if (isR32) {
+          const tied = m.home_score != null && m.away_score != null && m.home_score === m.away_score;
           html += `<select id="ko-home-${m.id}" class="ko-select">`;
           html += `<option value="">-- Home Team --</option>`;
           for (const t of eligibleTeams) {
@@ -303,9 +304,19 @@
             html += `<option value="${t.id}"${selected}>${t.flag_emoji} ${t.name} (${t.group_letter})</option>`;
           }
           html += `</select>`;
+          if (tied) {
+            const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
+            const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
+            html += `<select id="ko-pen-${m.id}" class="ko-select" style="margin-left:8px">
+              <option value="">-- Penalty winner --</option>
+              <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
+              <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
+            </select>`;
+          }
         } else {
           const hWon = m.home_score != null && m.away_score != null && m.home_score > m.away_score;
           const aWon = m.home_score != null && m.away_score != null && m.away_score > m.home_score;
+          const tied = m.home_score != null && m.away_score != null && m.home_score === m.away_score;
           html += `<span class="ko-team${hWon ? ' winner' : ''}">${homeTeam || m.match_label || 'TBD'}</span>
             <div class="ko-score-input">
               <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
@@ -313,6 +324,15 @@
               <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
             </div>
             <span class="ko-team${aWon ? ' winner' : ''}">${awayTeam || m.match_label || 'TBD'}</span>`;
+          if (tied) {
+            const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
+            const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
+            html += `<select id="ko-pen-${m.id}" class="ko-select" style="margin-left:8px">
+              <option value="">-- Penalty winner --</option>
+              <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
+              <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
+            </select>`;
+          }
         }
         html += `</div>`;
       }
@@ -335,6 +355,7 @@
       const isR32 = m.stage === 'round_of_32';
       const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : m.match_label || 'TBD';
       const awayLabel = m.away_team ? `${m.away_flag || ''} ${m.away_team}` : m.match_label || 'TBD';
+      const tied = m.home_score != null && m.away_score != null && m.home_score === m.away_score;
       html += `<div class="ko-match" style="margin-bottom:8px">
         <span class="ko-team">${homeLabel}</span>
         <div class="ko-score-input">
@@ -342,8 +363,17 @@
           <span>–</span>
           <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
         </div>
-        <span class="ko-team">${awayLabel}${isR32 ? ' <span class="badge pot">R32</span>' : ''}</span>
-      </div>`;
+        <span class="ko-team">${awayLabel}${isR32 ? ' <span class="badge pot">R32</span>' : ''}</span>`;
+      if (!isR32 && tied) {
+        const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
+        const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
+        html += `<select id="sheet-pen-${m.id}" class="ko-select" style="margin-left:8px">
+          <option value="">-- Penalty winner --</option>
+          <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
+          <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
+        </select>`;
+      }
+      html += `</div>`;
     }
     html += '</div>';
     container.innerHTML = html;
@@ -415,6 +445,7 @@
       const awayScoreInput = scoreValue(`ko-as-${m.id}`, `sheet-as-${m.id}`);
       const homeScore = homeScoreInput ? homeScoreInput.value : '';
       const awayScore = awayScoreInput ? awayScoreInput.value : '';
+      const penSel = document.getElementById(`ko-pen-${m.id}`) || document.getElementById(`sheet-pen-${m.id}`);
 
       const body = { id: m.id };
       if (homeId !== m.home_team_id) body.home_team_id = homeId;
@@ -425,6 +456,11 @@
       if (scoreChanged) {
         body.home_score = homeScore !== '' ? parseInt(homeScore) : null;
         body.away_score = awayScore !== '' ? parseInt(awayScore) : null;
+      }
+      if (penSel && penSel.value) {
+        body.winner_team_id = parseInt(penSel.value);
+      } else if (penSel && !penSel.value && m.winner_team_id) {
+        body.winner_team_id = null;
       }
 
       if (Object.keys(body).length <= 1) continue;
@@ -451,14 +487,22 @@
       if (!homeScore && !awayScore) continue;
       if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
 
+      const penSel = document.getElementById(`ko-pen-${m.id}`) || document.getElementById(`sheet-pen-${m.id}`);
+      const body = {
+        id: m.id,
+        home_score: homeScore !== '' ? parseInt(homeScore) : null,
+        away_score: awayScore !== '' ? parseInt(awayScore) : null
+      };
+      if (penSel && penSel.value) {
+        body.winner_team_id = parseInt(penSel.value);
+      } else if (penSel && !penSel.value && m.winner_team_id) {
+        body.winner_team_id = null;
+      }
+
       const res = await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: m.id,
-          home_score: homeScore !== '' ? parseInt(homeScore) : null,
-          away_score: awayScore !== '' ? parseInt(awayScore) : null
-        })
+        body: JSON.stringify(body)
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -485,14 +529,22 @@
       if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
       if (homeScore === '' && awayScore === '') continue;
 
+      const penSel = document.getElementById(`sheet-pen-${m.id}`);
+      const body = {
+        id: m.id,
+        home_score: homeScore !== '' ? parseInt(homeScore) : null,
+        away_score: awayScore !== '' ? parseInt(awayScore) : null
+      };
+      if (penSel && penSel.value) {
+        body.winner_team_id = parseInt(penSel.value);
+      } else if (penSel && !penSel.value && m.winner_team_id) {
+        body.winner_team_id = null;
+      }
+
       const res = await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: m.id,
-          home_score: homeScore !== '' ? parseInt(homeScore) : null,
-          away_score: awayScore !== '' ? parseInt(awayScore) : null
-        })
+        body: JSON.stringify(body)
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

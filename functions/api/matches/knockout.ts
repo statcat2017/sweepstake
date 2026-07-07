@@ -37,7 +37,7 @@ async function getBracket(db: D1Database) {
   const matches = await db.prepare(`
     SELECT
       m.id, m.stage, m.match_label, m.home_score, m.away_score, m.played,
-      m.feeder_1_id, m.feeder_2_id,
+      m.feeder_1_id, m.feeder_2_id, m.winner_team_id,
       ht.name as home_team, ht.flag_emoji as home_flag,
       at.name as away_team, at.flag_emoji as away_flag,
       ht.id as home_team_id, at.id as away_team_id
@@ -123,6 +123,10 @@ async function updateKnockoutMatch(db: D1Database, body: any) {
   if (body.away_team_id !== undefined) {
     updates.push("away_team_id = ?");
     values.push(body.away_team_id || null);
+  }
+  if (body.winner_team_id !== undefined) {
+    updates.push("winner_team_id = ?");
+    values.push(body.winner_team_id || null);
   }
 
   const hasScoreUpdate = body.home_score !== undefined || body.away_score !== undefined;
