@@ -411,7 +411,7 @@
       const awayScore = awayScoreInput.value;
       const penSel = document.getElementById(`ko-pen-${m.id}`);
 
-      const body: any = { id: m.id };
+      const body = { id: m.id };
 
       if (homeSel && awaySel) {
         const homeId = homeSel.value ? parseInt(homeSel.value) : null;
