@@ -419,8 +419,13 @@
       const body = { id: m.id };
       if (homeId !== m.home_team_id) body.home_team_id = homeId;
       if (awayId !== m.away_team_id) body.away_team_id = awayId;
-      if (homeScore !== String(m.home_score ?? '')) body.home_score = homeScore !== '' ? parseInt(homeScore) : null;
-      if (awayScore !== String(m.away_score ?? '')) body.away_score = awayScore !== '' ? parseInt(awayScore) : null;
+      const scoreChanged =
+        homeScore !== String(m.home_score ?? '') ||
+        awayScore !== String(m.away_score ?? '');
+      if (scoreChanged) {
+        body.home_score = homeScore !== '' ? parseInt(homeScore) : null;
+        body.away_score = awayScore !== '' ? parseInt(awayScore) : null;
+      }
 
       if (Object.keys(body).length <= 1) continue;
 
