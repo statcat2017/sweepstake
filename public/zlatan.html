@@ -244,6 +244,12 @@
 
     renderBracketEditor(knocks, bracketMatches);
     renderKnockoutScoreSheet(bracketMatches);
+    for (const m of bracketMatches) {
+      if (m.home_score != null && m.away_score != null && m.home_score === m.away_score) {
+        showPenaltyBracket(m.id);
+        showPenaltySheet(m.id);
+      }
+    }
   }
 
   function renderBracketEditor(knocks, bracketMatches) {
@@ -284,7 +290,6 @@
 
         html += `<div class="ko-match" style="margin-bottom:8px">`;
         if (isR32) {
-          const tied = m.home_score != null && m.away_score != null && m.home_score === m.away_score;
           html += `<select id="ko-home-${m.id}" class="ko-select">`;
           html += `<option value="">-- Home Team --</option>`;
           for (const t of eligibleTeams) {
@@ -293,9 +298,9 @@
           }
           html += `</select>`;
           html += `<div class="ko-score-input">
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center" oninput="showPenaltyBracket(${m.id})">
             <span>–</span>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center" oninput="showPenaltyBracket(${m.id})">
           </div>`;
           html += `<select id="ko-away-${m.id}" class="ko-select">`;
           html += `<option value="">-- Away Team --</option>`;
@@ -304,35 +309,18 @@
             html += `<option value="${t.id}"${selected}>${t.flag_emoji} ${t.name} (${t.group_letter})</option>`;
           }
           html += `</select>`;
-          if (tied) {
-            const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
-            const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
-            html += `<select id="ko-pen-${m.id}" class="ko-select" style="margin-left:8px">
-              <option value="">-- Penalty winner --</option>
-              <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
-              <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
-            </select>`;
-          }
+          html += `<span id="ko-pen-container-${m.id}"></span>`;
         } else {
           const hWon = m.home_score != null && m.away_score != null && m.home_score > m.away_score;
           const aWon = m.home_score != null && m.away_score != null && m.away_score > m.home_score;
-          const tied = m.home_score != null && m.away_score != null && m.home_score === m.away_score;
           html += `<span class="ko-team${hWon ? ' winner' : ''}">${homeTeam || m.match_label || 'TBD'}</span>
             <div class="ko-score-input">
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center" oninput="showPenaltyBracket(${m.id})">
               <span>–</span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="ko-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center" oninput="showPenaltyBracket(${m.id})">
             </div>
-            <span class="ko-team${aWon ? ' winner' : ''}">${awayTeam || m.match_label || 'TBD'}</span>`;
-          if (tied) {
-            const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
-            const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
-            html += `<select id="ko-pen-${m.id}" class="ko-select" style="margin-left:8px">
-              <option value="">-- Penalty winner --</option>
-              <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
-              <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
-            </select>`;
-          }
+            <span class="ko-team${aWon ? ' winner' : ''}">${awayTeam || m.match_label || 'TBD'}</span>
+            <span id="ko-pen-container-${m.id}"></span>`;
         }
         html += `</div>`;
       }
@@ -341,6 +329,29 @@
     html += `</div>`;
 
     container.innerHTML = html;
+  }
+
+  function showPenaltyBracket(matchId) {
+    const homeInput = document.getElementById(`ko-hs-${matchId}`);
+    const awayInput = document.getElementById(`ko-as-${matchId}`);
+    const container = document.getElementById(`ko-pen-container-${matchId}`);
+    if (!homeInput || !awayInput || !container) return;
+
+    const homeVal = homeInput.value;
+    const awayVal = awayInput.value;
+    if (homeVal === '' || awayVal === '') { container.innerHTML = ''; return; }
+    if (parseInt(homeVal) !== parseInt(awayVal)) { container.innerHTML = ''; return; }
+
+    const m = knockouts.find(k => k.id === matchId);
+    if (!m) return;
+
+    const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
+    const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
+    container.innerHTML = `<select id="ko-pen-${matchId}" class="ko-select" style="margin-left:8px">
+      <option value="">-- Penalty winner --</option>
+      <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
+      <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
+    </select>`;
   }
 
   function renderKnockoutScoreSheet(matches) {
@@ -352,31 +363,45 @@
 
     let html = '<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h3 style="margin-bottom:8px">Knockout Score Sheet</h3><p style="margin-bottom:12px;color:var(--gray-400)">Use this list if the bracket view is hard to read.</p></div><button class="btn primary" onclick="saveKnockoutScoreSheet()">Save Scores</button></div>';
     for (const m of matches) {
-      const isR32 = m.stage === 'round_of_32';
       const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : m.match_label || 'TBD';
       const awayLabel = m.away_team ? `${m.away_flag || ''} ${m.away_team}` : m.match_label || 'TBD';
-      const tied = m.home_score != null && m.away_score != null && m.home_score === m.away_score;
+      const isR32 = m.stage === 'round_of_32';
       html += `<div class="ko-match" style="margin-bottom:8px">
         <span class="ko-team">${homeLabel}</span>
         <div class="ko-score-input">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center" oninput="showPenaltySheet(${m.id})">
           <span>–</span>
-          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center" oninput="showPenaltySheet(${m.id})">
         </div>
-        <span class="ko-team">${awayLabel}${isR32 ? ' <span class="badge pot">R32</span>' : ''}</span>`;
-      if (!isR32 && tied) {
-        const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
-        const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
-        html += `<select id="sheet-pen-${m.id}" class="ko-select" style="margin-left:8px">
-          <option value="">-- Penalty winner --</option>
-          <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
-          <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
-        </select>`;
-      }
-      html += `</div>`;
+        <span class="ko-team">${awayLabel}${isR32 ? ' <span class="badge pot">R32</span>' : ''}</span>
+        <span id="sheet-pen-container-${m.id}"></span>
+      </div>`;
     }
     html += '</div>';
     container.innerHTML = html;
+  }
+
+  function showPenaltySheet(matchId) {
+    const homeInput = document.getElementById(`sheet-hs-${matchId}`);
+    const awayInput = document.getElementById(`sheet-as-${matchId}`);
+    const container = document.getElementById(`sheet-pen-container-${matchId}`);
+    if (!homeInput || !awayInput || !container) return;
+
+    const homeVal = homeInput.value;
+    const awayVal = awayInput.value;
+    if (homeVal === '' || awayVal === '') { container.innerHTML = ''; return; }
+    if (parseInt(homeVal) !== parseInt(awayVal)) { container.innerHTML = ''; return; }
+
+    const m = knockouts.find(k => k.id === matchId);
+    if (!m) return;
+
+    const homeSelected = m.winner_team_id === m.home_team_id ? ' selected' : '';
+    const awaySelected = m.winner_team_id === m.away_team_id ? ' selected' : '';
+    container.innerHTML = `<select id="sheet-pen-${matchId}" class="ko-select" style="margin-left:8px">
+      <option value="">-- Penalty winner --</option>
+      <option value="${m.home_team_id ?? ''}"${homeSelected}>${m.home_team || 'Home'} (pens)</option>
+      <option value="${m.away_team_id ?? ''}"${awaySelected}>${m.away_team || 'Away'} (pens)</option>
+    </select>`;
   }
 
   async function seedKnockout() {
