@@ -30,9 +30,9 @@ const r32: BracketSlot[] = [
 ];
 
 const dag: FeederLink[] = [
-  { childLabel: "R16-01", parent1Label: "R32-01", parent2Label: "R32-05" },
-  { childLabel: "R16-02", parent1Label: "R32-03", parent2Label: "R32-04" },
-  { childLabel: "R16-03", parent1Label: "R32-02", parent2Label: "R32-06" },
+  { childLabel: "R16-01", parent1Label: "R32-01", parent2Label: "R32-03" },
+  { childLabel: "R16-02", parent1Label: "R32-02", parent2Label: "R32-05" },
+  { childLabel: "R16-03", parent1Label: "R32-04", parent2Label: "R32-06" },
   { childLabel: "R16-04", parent1Label: "R32-07", parent2Label: "R32-08" },
   { childLabel: "R16-05", parent1Label: "R32-11", parent2Label: "R32-12" },
   { childLabel: "R16-06", parent1Label: "R32-09", parent2Label: "R32-10" },
