@@ -23,7 +23,7 @@ import type { GroupStandingRow } from "./sync/standings-helper";
 export async function getGroupStandingsRows(db: D1Database): Promise<GroupStandingRow[]> {
   const result = await db.prepare(`
     SELECT
-      t.group_letter, t.id as team_id, t.name as team_name, t.flag_emoji, t.eliminated,
+      t.group_letter, t.id as team_id, t.id as id, t.name as team_name, t.name as name, t.flag_emoji, t.eliminated,
       COALESCE(SUM(CASE
         WHEN m.home_team_id = t.id THEN
           CASE

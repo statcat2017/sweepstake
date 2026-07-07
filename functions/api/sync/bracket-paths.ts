@@ -85,3 +85,45 @@ export function generateBracketSeeds() {
 
   return inserts;
 }
+
+export async function seedBracket(db: D1Database) {
+  await db.prepare("DELETE FROM matches WHERE stage != 'group'").run();
+
+  const seeds = generateBracketSeeds();
+  const labelToId = new Map<string, number>();
+
+  const insertStage = (start: number, count: number) =>
+    db.batch(seeds.slice(start, start + count).map(s =>
+      db.prepare("INSERT INTO matches (stage, match_label) VALUES (?, ?)")
+        .bind(s.stage, s.matchLabel)
+    ));
+
+  const insertWithFeeders = (start: number, count: number) =>
+    db.batch(seeds.slice(start, start + count).map(s => {
+      const f1Id = labelToId.get(s.feeder1Label!) ?? null;
+      const f2Id = labelToId.get(s.feeder2Label!) ?? null;
+      return db.prepare(
+        "INSERT INTO matches (stage, match_label, feeder_1_id, feeder_2_id) VALUES (?, ?, ?, ?)"
+      ).bind(s.stage, s.matchLabel, f1Id, f2Id);
+    }));
+
+  const storeIds = (results: any[], start: number, count: number) => {
+    const ids = results.map((r: any) => Number(r.meta.last_row_id));
+    for (let i = 0; i < count; i++) labelToId.set(seeds[start + i].matchLabel, ids[i]);
+    return ids;
+  };
+
+  let results = await insertStage(0, 16);
+  storeIds(results, 0, 16);
+
+  results = await insertWithFeeders(16, 8);
+  storeIds(results, 16, 8);
+
+  results = await insertWithFeeders(24, 4);
+  storeIds(results, 24, 4);
+
+  results = await insertWithFeeders(28, 2);
+  storeIds(results, 28, 2);
+
+  await insertWithFeeders(30, 2);
+}

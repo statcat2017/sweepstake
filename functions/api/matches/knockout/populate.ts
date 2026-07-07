@@ -1,7 +1,7 @@
-import { getDb, getGroupStandingsRows } from "../../db";
+import { getDb } from "../../db";
 import { requireAuth } from "../../auth";
+import { seedBracket } from "../../sync/bracket-paths";
 import { assignR32TeamsFromQualified } from "../../sync/r32-populate";
-import { computeGroupStandings, getQualifiedTeams } from "../../sync/standings-helper";
 
 interface Env {
   DB: D1Database;
@@ -19,16 +19,20 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
   if (auth) return auth;
 
   try {
-    const groupRows = await getGroupStandingsRows(db);
-    const qualified = getQualifiedTeams(computeGroupStandings(groupRows));
-    if (!qualified) {
-      return Response.json({ error: "Group stage is not complete yet." }, { status: 409 });
+    const existing = await db.prepare(
+      "SELECT COUNT(*) as cnt FROM matches WHERE stage = 'round_of_32'"
+    ).first<{ cnt: number }>();
+    let seeded = 0;
+    if (!existing || existing.cnt === 0) {
+      await seedBracket(db);
+      seeded = 32;
     }
 
-    const result = await assignR32TeamsFromQualified(db, qualified);
+    const result = await assignR32TeamsFromQualified(db);
     return Response.json({
       populated: true,
       source: "wikipedia",
+      seeded,
       ...result,
     });
   } catch (err) {

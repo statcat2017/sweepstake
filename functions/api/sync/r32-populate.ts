@@ -1,6 +1,5 @@
 import { apiNameToDbName, dbNameToApiName } from "./team-mapping";
 import { getR32Slots } from "./bracket-paths";
-import type { QualifiedTeams } from "./standings-helper";
 
 export async function buildTeamResolver(db: D1Database, errors: string[] = []): Promise<(apiName: string) => number | null> {
   const teams = await db.prepare("SELECT id, name FROM teams").all<any>();
@@ -25,7 +24,6 @@ export async function buildTeamResolver(db: D1Database, errors: string[] = []): 
 
 export async function assignR32TeamsFromQualified(
   db: D1Database,
-  _qualified: QualifiedTeams,
 ): Promise<{ assigned: number; skipped: number; errors: string[] }> {
   const r32Slots = getR32Slots();
   const r32Matches = await db.prepare(`

@@ -203,6 +203,17 @@ if [ "$KO_MATCHES" != "32" ]; then
 fi
 
 echo ""
+echo "--- 6b. Auto-Populate R32 ---"
+POP_RESP=$(curl -sf -X POST "$BASE/api/matches/knockout/populate" -H "$AUTH")
+POP_ASSIGNED=$(echo "$POP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('assigned',0))" 2>/dev/null)
+echo "  R32 teams assigned: $POP_ASSIGNED"
+if [ "$POP_ASSIGNED" != "16" ]; then
+  echo "  FAIL: expected 16 R32 teams assigned, got $POP_ASSIGNED"
+  echo "  Response: $POP_RESP"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
 echo "--- 7. Sync endpoint ---"
 check401 "POST /api/sync (no auth)"  -X POST "$BASE/api/sync"
 
