@@ -1,8 +1,8 @@
 import { getDb, getGroupStandingsRows } from "./db";
 import { requireAuth } from "./auth";
-import { apiNameToDbName, dbNameToApiName } from "./sync/team-mapping";
-import { getBracketDAG, getR32Slots } from "./sync/bracket-paths";
-import { computeGroupStandings, getQualifiedTeams, resolveTeamSource } from "./sync/standings-helper";
+import { getBracketDAG } from "./sync/bracket-paths";
+import { assignR32TeamsFromBracketSlots, buildTeamResolver } from "./sync/r32-populate";
+import { computeGroupStandings, getQualifiedTeams } from "./sync/standings-helper";
 
 interface Env {
   DB: D1Database;
@@ -101,21 +101,7 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
   report.fixtures_fetched = fixtures.length;
   const finishedStatuses = new Set(["FT", "AET", "PEN"]);
 
-  const teams = await db.prepare("SELECT id, name FROM teams").all<any>();
-  const nameToDbId = new Map<string, number>();
-  for (const t of teams.results) {
-    nameToDbId.set(t.name, t.id);
-    nameToDbId.set(dbNameToApiName(t.name), t.id);
-  }
-
-  function resolveTeam(apiName: string): number | null {
-    const dbName = apiNameToDbName(apiName);
-    if (!dbName) return null;
-    const id = nameToDbId.get(dbName);
-    if (id) return id;
-    report.errors.push(`Team not in DB: '${apiName}'`);
-    return null;
-  }
+  const resolveTeam = await buildTeamResolver(db, report.errors);
 
   async function processFixture(fixture: any, state: { byTeamPair: Map<string, any[]> }): Promise<number> {
     const status = fixture.fixture?.status?.short;
@@ -256,56 +242,16 @@ async function runSync(db: D1Database, apiKey: string): Promise<Response> {
 
   await runLoop(MAX_ITERATIONS);
 
-  // ── Phase B: assign R32 teams from group standings (only when all groups complete) ──
+  // ── Phase B: assign R32 teams from the Wikipedia bracket once groups are complete ──
   const groupRows = await getGroupStandingsRows(db);
 
   const groups = computeGroupStandings(groupRows);
   const qualified = getQualifiedTeams(groups);
 
   if (qualified) {
-    const r32Slots = getR32Slots();
-    const r32MatchesInDb = state.matches
-      .filter(m => m.stage === "round_of_32")
-      .sort((a, b) => (a.id || 0) - (b.id || 0));
-
-    // ── B: match all 16 R32 slots to API fixtures by team identity ──
-    // Standings provide lookup keys (winner/runner-up IDs); API fixtures
-    // supply the actual team assignment for every slot.
-    for (let i = 0; i < r32Slots.length && i < r32MatchesInDb.length; i++) {
-      const slot = r32Slots[i];
-      const dbMatch = r32MatchesInDb[i];
-      if (dbMatch.home_team_id && dbMatch.away_team_id) continue;
-
-      // Build lookup keys from standings (winners + runners-up only)
-      const expectedIds: (number | null)[] = [];
-      for (const src of [slot.homeSource, slot.awaySource] as any[]) {
-        if (src.type !== "best-third") {
-          expectedIds.push(resolveTeamSource(src, qualified));
-        } else {
-          expectedIds.push(null);
-        }
-      }
-
-      // Find the API fixture that contains at least one expected team
-      for (const fixture of fixtures) {
-        const round = (fixture.league?.round || "") as string;
-        if (!round.toLowerCase().includes("round of 32")) continue;
-
-        const fHomeId = resolveTeam(fixture.teams?.home?.name);
-        const fAwayId = resolveTeam(fixture.teams?.away?.name);
-        if (!fHomeId || !fAwayId) continue;
-
-        if (!expectedIds.includes(fHomeId) && !expectedIds.includes(fAwayId)) continue;
-
-        await db.prepare(`
-          UPDATE matches SET home_team_id = ?, away_team_id = ?,
-          updated_at = datetime('now') WHERE id = ?
-        `).bind(fHomeId, fAwayId, dbMatch.id).run();
-
-        report.r32_teams_assigned++;
-        break;
-      }
-    }
+    const r32Result = await assignR32TeamsFromBracketSlots(db);
+    report.r32_teams_assigned = r32Result.assigned;
+    report.errors.push(...r32Result.errors);
   }
 
   // ── Phase C: one more loop to catch scores for newly-assigned R32 ──

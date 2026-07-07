@@ -67,9 +67,10 @@
 
     <div class="card">
       <h2>Match Results</h2>
-      <p>Enter scores for played matches, or sync automatically from API-Football.</p>
+      <p>Enter scores for played matches, then save them all at once.</p>
       <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn primary" id="sync-btn" onclick="syncScores()">Sync Scores from API</button>
+        <button class="btn primary" id="save-group-btn" onclick="saveAllGroupScores()">Save All Group Scores</button>
+        <button class="btn outline" id="sync-btn" onclick="syncScores()">Sync Scores from API</button>
       </div>
       <div id="sync-result" style="margin-bottom:12px"></div>
       <div id="match-list"></div>
@@ -77,13 +78,16 @@
 
     <div class="card">
       <h2 style="margin-bottom:12px">Knockout Bracket</h2>
-      <p>Set up Round of 32 matchups, then enter scores. Click "Advance Winners" to auto-populate later rounds.</p>
+      <p>Set up Round of 32 matchups, or auto-populate them from the Wikipedia bracket once groups are complete.</p>
       <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" onclick="seedKnockout()">Seed Knockout Bracket</button>
+        <button class="btn outline" id="populate-r32-btn" onclick="populateR32()">Auto-Populate R32</button>
         <button class="btn outline" onclick="saveKnockoutTeams()">Save Team Selections</button>
         <button class="btn outline" onclick="advanceWinners()">Advance Winners</button>
       </div>
+      <div id="populate-r32-result" style="margin-bottom:12px"></div>
       <div id="bracket-editor"></div>
+      <div id="knockout-score-sheet" style="margin-top:16px"></div>
     </div>
   </div>
   </div>
@@ -91,6 +95,7 @@
   <script>
   let PASSWORD = sessionStorage.getItem('sweepstake_auth') || '';
   let drawLocked = false;
+  let groupMatches = [];
   let knockouts = [];
   let eligibleTeams = [];
 
@@ -139,6 +144,8 @@
     const matches = await matchRes.json();
     const standings = await stateRes.json();
     const knocks = await knockRes.json();
+    const bracketMatches = (knocks.matches && knocks.matches.length > 0) ? knocks.matches : (standings.knockoutMatches || []);
+    groupMatches = (matches.matches || []).filter(m => m.stage === 'group');
 
     drawLocked = participants.drawn;
     document.getElementById('draw-btn').disabled = drawLocked || participants.participants.length < 2;
@@ -181,7 +188,6 @@
 
     const matchList = document.getElementById('match-list');
     if (matches.matches?.length) {
-      const groupMatches = matches.matches.filter(m => m.stage === 'group');
       if (groupMatches.length === 0) {
         matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
       } else {
@@ -227,7 +233,6 @@
                   <input type="text" inputmode="numeric" pattern="[0-9]*" id="hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
                   <span>-</span>
                   <input type="text" inputmode="numeric" pattern="[0-9]*" id="as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:48px;text-align:center">
-                  <button class="btn primary" onclick="saveScore(${m.id})" style="padding:6px 12px;font-size:13px;min-height:unset">Save</button>
                 </div>
               </div>`;
           }
@@ -237,17 +242,18 @@
       matchList.innerHTML = '<p style="color:var(--gray-400)">No matches yet. Click "Seed Group Matches" to generate them.</p>';
     }
 
-    renderBracketEditor(knocks);
+    renderBracketEditor(knocks, bracketMatches);
+    renderKnockoutScoreSheet(bracketMatches);
   }
 
-  function renderBracketEditor(knocks) {
+  function renderBracketEditor(knocks, bracketMatches) {
     const container = document.getElementById('bracket-editor');
-    if (!knocks.matches || knocks.matches.length === 0) {
+    if (!bracketMatches || bracketMatches.length === 0) {
       container.innerHTML = '<p style="color:var(--gray-400)">No knockout bracket yet. Click "Seed Knockout Bracket" to create it.</p>';
       return;
     }
 
-    knockouts = knocks.matches;
+    knockouts = bracketMatches;
     eligibleTeams = knocks.eligibleTeams || [];
 
     const stages = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'];
@@ -317,6 +323,32 @@
     container.innerHTML = html;
   }
 
+  function renderKnockoutScoreSheet(matches) {
+    const container = document.getElementById('knockout-score-sheet');
+    if (!matches || matches.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let html = '<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h3 style="margin-bottom:8px">Knockout Score Sheet</h3><p style="margin-bottom:12px;color:var(--gray-400)">Use this list if the bracket view is hard to read.</p></div><button class="btn primary" onclick="saveKnockoutScoreSheet()">Save Scores</button></div>';
+    for (const m of matches) {
+      const isR32 = m.stage === 'round_of_32';
+      const homeLabel = m.home_team ? `${m.home_flag || ''} ${m.home_team}` : m.match_label || 'TBD';
+      const awayLabel = m.away_team ? `${m.away_flag || ''} ${m.away_team}` : m.match_label || 'TBD';
+      html += `<div class="ko-match" style="margin-bottom:8px">
+        <span class="ko-team">${homeLabel}</span>
+        <div class="ko-score-input">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-hs-${m.id}" value="${m.home_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+          <span>–</span>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="sheet-as-${m.id}" value="${m.away_score ?? ''}" placeholder="-" style="width:36px;text-align:center">
+        </div>
+        <span class="ko-team">${awayLabel}${isR32 ? ' <span class="badge pot">R32</span>' : ''}</span>
+      </div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
   async function seedKnockout() {
     const res = await apiFetch('/api/matches/knockout', { method: 'POST' });
     if (res.ok) {
@@ -329,8 +361,47 @@
     }
   }
 
+  async function populateR32() {
+    const btn = document.getElementById('populate-r32-btn');
+    btn.disabled = true;
+    btn.textContent = 'Populating...';
+    document.getElementById('populate-r32-result').innerHTML = '<p style="color:var(--gray-400)">Resolving the Wikipedia bracket...</p>';
+
+    try {
+      const res = await apiFetch('/api/matches/knockout/populate', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.error) {
+        document.getElementById('populate-r32-result').innerHTML = `<div class="alert error">${data.error}</div>`;
+      } else {
+        let html = '<div class="alert success" style="font-size:13px">';
+        html += `<strong>R32 populated</strong> — ${data.assigned} matches updated`;
+        if (data.source) html += ` (${data.source})`;
+        html += '<br>';
+        if (data.fixtures_fetched != null) html += `${data.fixtures_fetched} fixtures checked<br>`;
+        if (data.skipped > 0) html += `${data.skipped} slots skipped<br>`;
+        if (data.errors?.length) {
+          html += `<span style="color:var(--red)">Warnings:</span> ${data.errors.slice(0, 3).join('; ')}`;
+          if (data.errors.length > 3) html += ` (+${data.errors.length - 3} more)`;
+        }
+        html += '</div>';
+        document.getElementById('populate-r32-result').innerHTML = html;
+        load();
+      }
+    } catch (err) {
+      document.getElementById('populate-r32-result').innerHTML = `<div class="alert error">Populate failed: ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Auto-Populate R32';
+    }
+  }
+
   async function saveKnockoutTeams() {
     let count = 0;
+    function scoreValue(idA, idB) {
+      return document.getElementById(idA) || document.getElementById(idB);
+    }
+
     // First save all team selections for R32
     for (const m of knockouts) {
       if (m.stage !== 'round_of_32') continue;
@@ -340,34 +411,47 @@
 
       const homeId = homeSel.value ? parseInt(homeSel.value) : null;
       const awayId = awaySel.value ? parseInt(awaySel.value) : null;
-      const homeScore = document.getElementById(`ko-hs-${m.id}`).value;
-      const awayScore = document.getElementById(`ko-as-${m.id}`).value;
+      const homeScoreInput = scoreValue(`ko-hs-${m.id}`, `sheet-hs-${m.id}`);
+      const awayScoreInput = scoreValue(`ko-as-${m.id}`, `sheet-as-${m.id}`);
+      const homeScore = homeScoreInput ? homeScoreInput.value : '';
+      const awayScore = awayScoreInput ? awayScoreInput.value : '';
 
       const body = { id: m.id };
       if (homeId !== m.home_team_id) body.home_team_id = homeId;
       if (awayId !== m.away_team_id) body.away_team_id = awayId;
-      if (homeScore !== String(m.home_score ?? '')) body.home_score = homeScore !== '' ? parseInt(homeScore) : null;
-      if (awayScore !== String(m.away_score ?? '')) body.away_score = awayScore !== '' ? parseInt(awayScore) : null;
+      const scoreChanged =
+        homeScore !== String(m.home_score ?? '') ||
+        awayScore !== String(m.away_score ?? '');
+      if (scoreChanged) {
+        body.home_score = homeScore !== '' ? parseInt(homeScore) : null;
+        body.away_score = awayScore !== '' ? parseInt(awayScore) : null;
+      }
 
       if (Object.keys(body).length <= 1) continue;
 
-      await apiFetch('/api/matches/knockout', {
+      const res = await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to save match ${m.id}`);
+      }
       count++;
     }
 
     // Also save scores for non-R32 matches
     for (const m of knockouts) {
       if (m.stage === 'round_of_32') continue;
-      const homeScore = document.getElementById(`ko-hs-${m.id}`)?.value;
-      const awayScore = document.getElementById(`ko-as-${m.id}`)?.value;
+      const homeScoreInput = scoreValue(`ko-hs-${m.id}`, `sheet-hs-${m.id}`);
+      const awayScoreInput = scoreValue(`ko-as-${m.id}`, `sheet-as-${m.id}`);
+      const homeScore = homeScoreInput?.value;
+      const awayScore = awayScoreInput?.value;
       if (!homeScore && !awayScore) continue;
       if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
 
-      await apiFetch('/api/matches/knockout', {
+      const res = await apiFetch('/api/matches/knockout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -376,11 +460,49 @@
           away_score: awayScore !== '' ? parseInt(awayScore) : null
         })
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to save match ${m.id}`);
+      }
       count++;
     }
 
     if (count > 0) {
       alert(`Saved ${count} updates!`, 'success');
+      load();
+    }
+  }
+
+  async function saveKnockoutScoreSheet() {
+    let count = 0;
+    for (const m of knockouts) {
+      const homeInput = document.getElementById(`sheet-hs-${m.id}`);
+      const awayInput = document.getElementById(`sheet-as-${m.id}`);
+      if (!homeInput || !awayInput) continue;
+
+      const homeScore = homeInput.value;
+      const awayScore = awayInput.value;
+      if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
+      if (homeScore === '' && awayScore === '') continue;
+
+      const res = await apiFetch('/api/matches/knockout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: m.id,
+          home_score: homeScore !== '' ? parseInt(homeScore) : null,
+          away_score: awayScore !== '' ? parseInt(awayScore) : null
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to save match ${m.id}`);
+      }
+      count++;
+    }
+
+    if (count > 0) {
+      alert(`Saved ${count} knockout scores!`, 'success');
       load();
     }
   }
@@ -486,6 +608,51 @@
     if (res.ok) {
       alert('Score saved!', 'success');
       load();
+    }
+  }
+
+  async function saveAllGroupScores() {
+    const btn = document.getElementById('save-group-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    let count = 0;
+    try {
+      for (const m of groupMatches) {
+        const homeInput = document.getElementById(`hs-${m.id}`);
+        const awayInput = document.getElementById(`as-${m.id}`);
+        if (!homeInput || !awayInput) continue;
+
+        const homeScore = homeInput.value;
+        const awayScore = awayInput.value;
+        if (homeScore === String(m.home_score ?? '') && awayScore === String(m.away_score ?? '')) continue;
+        if (homeScore === '' && awayScore === '') continue;
+
+        const res = await apiFetch('/api/matches', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: m.id,
+            home_score: homeScore !== '' ? parseInt(homeScore) : null,
+            away_score: awayScore !== '' ? parseInt(awayScore) : null
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Failed to save match ${m.id}`);
+        }
+        count++;
+      }
+
+      if (count > 0) {
+        alert(`Saved ${count} group scores!`, 'success');
+        load();
+      } else {
+        alert('No group score changes to save.', 'info');
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save All Group Scores';
     }
   }
 
